@@ -17,4 +17,4 @@ pycolmap>=4.1    # 4.2.1
 open3d           # 0.20.0
 scikit-image     # 0.26.0
 xatlas           # 0.0.11 (the dollhouse's UV atlas)
-git+https://github.com/microsoft/MoGe.git   # MoGe-2 (MIT): the full-sphere depth; its weights download on the first build
+moge @ git+https://github.com/microsoft/MoGe.git@74fbce054ebed49800de42d0ad0e83495065719a   # MoGe-2 (MIT), pinned to the commit the reference runs used (needs git on PATH); its weights download on the first build

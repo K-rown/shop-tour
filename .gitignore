@@ -14,3 +14,4 @@ models/plate_rtdetrv2/
 private/
 minimap.png
 qa/person_removal.jpg
+.venv/

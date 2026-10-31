@@ -1224,7 +1224,7 @@ class TestManifest(unittest.TestCase):
     def test_walked_on_comes_from_the_camera_file_name(self):
         import manifest
         with tempfile.TemporaryDirectory() as d:
-            _wj(os.path.join(d, "source.json"), dict(name="VID_example.insv", size=1))
+            _wj(os.path.join(d, "source.json"), dict(name="VID_" + "20260101_101500_00_001.insv", size=1))
             self.assertEqual(manifest.walked_on(d), "2026-01-01")
             _wj(os.path.join(d, "source.json"), dict(name="walk.insv"))
             self.assertIsNone(manifest.walked_on(d))

@@ -28,7 +28,7 @@ import remove_others as RO
 from imutil import imread, imwrite
 
 VERSION = 3
-FACE_SCORE = 0.3                  # YuNet's own bar: every candidate; what is KEPT is decided by FACE_HEAD / FACE_VIEW / FACE_ALONE below (measured by eye on two walks, see README)
+FACE_SCORE = 0.3                  # YuNet's own bar: every candidate; what is KEPT is decided by FACE_HEAD / FACE_VIEW / FACE_ALONE below (measured by eye on two walks, see docs/GUIDE.md)
 FACE_HEAD = 0.3                   # a face found in the zoomed look at a person's head: kept at any score the detector gives (a head zoom only ever shows a person; a blurred head is never wrong)
 FACE_VIEW = 0.6                   # a face found only in the wider views: kept at this score when it stands on a person or in a vehicle's upper half (a driver) ...
 FACE_ALONE = 0.88                 # ... and at this score anywhere (a poster's face); below that and on nothing it is a shelf, a fan, a wheel (a shop's clutter scores 0.6-0.81)
@@ -44,7 +44,7 @@ PLATE_VEH_HEIGHT = 0.20           # a plate is at most this much of its vehicle'
 PLATE_MAX_HALF = (7.0, 2.5)       # and, with no vehicle found, at most this many degrees half-width / half-height (a plate 15 cm tall at 2 m is 2 degrees)
 TEXT_SCORE = 0.5                  # the text detector's bar (DBNet's box score)
 TEXT_SURE = 0.9                   # a box DBNet scores this high, wide, not leaf-coloured, with strong contrast and two glyph-sized pieces is kept without texty()'s row-of-equal-glyphs check
-                                  # (a shelter's "Goldsboro Road", a billboard's name and phone number: 22 of the 29 boxes this lets in on the road walk are lettering; the score alone is no guide: foliage scores 0.97)
+                                  # (a bus shelter's street name, a billboard's name and phone number: 22 of the 29 boxes this lets in on the road walk are lettering; the score alone is no guide: foliage scores 0.97)
 TEXT_SURE_ASPECT, TEXT_SURE_GREEN = 1.5, 0.2
 TEXT_CONTRAST, TEXT_GLYPHS = 45.0, 3   # texty(): the two sides of the box differ by this many grey levels, and this many glyph-like pieces stand in it
 TEXT_MIN_PX = 9                   # a text box shorter than this in the tile is noise, not lettering

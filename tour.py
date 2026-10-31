@@ -185,7 +185,8 @@ def video_path(path):
 
 
 REQUIRED = {"numpy": "numpy", "cv2": "opencv-python-headless", "scipy": "scipy", "PIL": "pillow", "pycolmap": "pycolmap>=4.1",
-            "torch": "torch torchvision", "transformers": "transformers"}
+            "torch": "torch torchvision", "transformers": "transformers", "open3d": "open3d", "skimage": "scikit-image", "xatlas": "xatlas",
+            "moge": "git+https://github.com/microsoft/MoGe.git"}      # the last four: the sphere depth and the dollhouse, which used to fail 20 minutes in
 
 
 def preflight():
@@ -885,7 +886,7 @@ def main():
             in_tour = len(json.load(fh)["nodes"])
     except Exception:
         pass
-    try:                                                 # the stable hand-off for anything that opens or imports this tour (README: manifest.json)
+    try:                                                 # the stable hand-off for anything that opens or imports this tour (docs/GUIDE.md: manifest.json)
         import manifest
         manifest.write(F, os.path.join(WORK, "tour"))
     except Exception as e:                               # a tour without a manifest still opens; apps that import tours will say it is missing

@@ -136,7 +136,7 @@ def prune(out, keep):
 
 
 def walked_path(frames, pts, MX, MY, ZS, CAMH, placed, window=40.0, step=0.2, log=print):
-    """THE PATH HE WALKED (2026-10-30 — the owner, on the Vitronic tour: "you don't show the path that I walked… maybe that would be a useful
+    """THE PATH HE WALKED (2026-10-30 — a tester, on a road walk's tour: "you don't show the path that I walked… maybe that would be a useful
     toggle"). vio_map.py's 1 Hz chain (frames/vio/poses.npz) has a camera position for every second of the walk; the tour has map positions for
     the stops only. Each chain position is laid onto the map the way map_stops.vio_place lays a stop: a similarity fit (Umeyama, rotation +
     scale + shift) over the placed stops within +-`window` seconds of it that are in both (the chain drifts in scale, so the fit is local; at

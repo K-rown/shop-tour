@@ -2,7 +2,7 @@
 
   python manifest.py [--frames frames] [--tour tour]     # (re)writes tour/manifest.json; tour.py does this at the end of every run
 
-The contract is documented in README.md ("manifest.json"). Only numbers and stop ids go in it: no pictures, no paths, no names of people.
+The contract is documented in docs/GUIDE.md ("manifest.json"). Only numbers and stop ids go in it: no pictures, no paths, no names of people.
 """
 import argparse, datetime, json, os, re, subprocess
 

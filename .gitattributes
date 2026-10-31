@@ -1,0 +1,3 @@
+# double-click scripts: Windows needs CRLF in a .bat (labels break with LF), a shell needs LF
+*.bat text eol=crlf
+*.sh text eol=lf
