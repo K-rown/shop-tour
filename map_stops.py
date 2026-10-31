@@ -40,6 +40,7 @@ def run_sfm_apart(frames, work, width, features, window):
     best = os.path.join(work, "best")
     if r.returncode != 0:
         print(f"the {width} px / {features} features try stopped (exit {r.returncode}); the map already made is kept", flush=True)
+        run_sfm_apart.died = True                      # a heavier try after it would only die the same way (memory): stop trying
         return pts, None
     if not os.path.isdir(best) or not os.listdir(best):
         return pts, None
@@ -360,6 +361,8 @@ def main():
             win = force_win
         wdir = a.work if t == 0 else f"{a.work}_try{t}"
         pts, rec = (run_sfm if t == 0 else run_sfm_apart)(a.frames, wdir, width, nfeat, win)
+        if getattr(run_sfm_apart, "died", False):
+            break
         if rec is not None and (kept is None or rec.num_reg_images() > kept[1].num_reg_images()):
             kept = (pts, rec, wdir)
         if rec is not None and rec.num_reg_images() >= len(pts):
