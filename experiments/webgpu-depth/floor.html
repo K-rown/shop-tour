@@ -1,0 +1,72 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Browser floor model spike</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{font:14px system-ui,sans-serif;margin:16px;background:#111;color:#ddd}pre{background:#1b1b1b;padding:10px;border-radius:6px;white-space:pre-wrap}</style>
+<h3>Floor segmentation in the browser (experiment)</h3>
+<p>Runs the project's floor model (UperNet ConvNeXt-small, MIT, exported to ONNX by <code>export_floor_onnx.py</code>) with ONNX Runtime Web
+(MIT) on WebGPU or WASM and compares the result with PyTorch. Driven by <code>run_floor_spike.py</code>.</p>
+<pre id="log">idle</pre>
+<script type="module">
+import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.webgpu.min.mjs";
+ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
+const log = m => { document.getElementById("log").textContent += "\n" + m; };
+const f32 = async url => new Float32Array(await (await fetch(url)).arrayBuffer());
+const C = 150, S = 128;
+
+function floorMask(logits, floorIds) {                 // logits: [C, S, S] flat -> {mask: Uint8Array(S*S), top: Int16Array(S*S)}
+  const mask = new Uint8Array(S * S), top = new Int16Array(S * S);
+  for (let p = 0; p < S * S; p++) {
+    let best = -1e30, bi = 0;
+    for (let c = 0; c < C; c++) { const v = logits[c * S * S + p]; if (v > best) { best = v; bi = c; } }
+    top[p] = bi; mask[p] = floorIds.includes(bi) ? 1 : 0;
+  }
+  return { mask, top };
+}
+function compare(a, b, ref, floorIds) {                // a: browser logits, b: python logits
+  const A = floorMask(a, floorIds), B = floorMask(b, floorIds);
+  let same = 0, sameTop = 0, inter = 0, uni = 0, fa = 0, fb = 0;
+  for (let p = 0; p < S * S; p++) {
+    same += A.mask[p] === B.mask[p]; sameTop += A.top[p] === B.top[p];
+    inter += A.mask[p] & B.mask[p]; uni += A.mask[p] | B.mask[p]; fa += A.mask[p]; fb += B.mask[p];
+  }
+  let sa = 0, sb = 0, sab = 0, ma = 0, mb = 0;         // Pearson correlation of the raw logits
+  for (let i = 0; i < a.length; i++) { ma += a[i]; mb += b[i]; }
+  ma /= a.length; mb /= b.length;
+  for (let i = 0; i < a.length; i++) { const x = a[i] - ma, y = b[i] - mb; sa += x * x; sb += y * y; sab += x * y; }
+  return { floor_mask_agreement: same / (S * S), floor_iou: uni ? inter / uni : 1, top1_class_agreement: sameTop / (S * S),
+           logit_correlation: sab / Math.sqrt(sa * sb), floor_share_browser: fa / (S * S), floor_share_python: fb / (S * S) };
+}
+
+async function preprocessFromImage(url, mean, std) {   // the same steps as the Hugging Face processor: resize to 512 x 512 (bilinear), /255, normalise
+  const bmp = await createImageBitmap(await (await fetch(url)).blob());
+  const cv = new OffscreenCanvas(512, 512), cx = cv.getContext("2d");
+  cx.imageSmoothingQuality = "high"; cx.drawImage(bmp, 0, 0, 512, 512);
+  const d = cx.getImageData(0, 0, 512, 512).data, out = new Float32Array(3 * 512 * 512);
+  for (let i = 0; i < 512 * 512; i++) for (let c = 0; c < 3; c++) out[c * 512 * 512 + i] = (d[i * 4 + c] / 255 - mean[c]) / std[c];
+  return out;
+}
+
+// opts: {base, device, file}: base is the folder that holds floor.onnx (or the file you name, e.g. floor_fp16.onnx), test_input.f32, test_logits.f32, test_view.png, meta.json
+window.runFloor = async function ({ base, device = "webgpu", file = "floor.onnx" }) {
+  const meta = await (await fetch(base + "/meta.json")).json(), t = {};
+  let t0 = performance.now();
+  const sess = await ort.InferenceSession.create(base + "/" + file, { executionProviders: [device], graphOptimizationLevel: "all" });
+  t.model_load_ms = performance.now() - t0;
+  const ref = await f32(base + "/test_logits.f32");
+  const run = async input => { const t1 = performance.now(); const r = await sess.run({ pixel_values: new ort.Tensor("float32", input, [1, 3, 512, 512]) }); return { logits: r.logits.data, ms: performance.now() - t1 }; };
+  const inA = await f32(base + "/test_input.f32");
+  const a1 = await run(inA); const a2 = await run(inA); const a3 = await run(inA);
+  t.first_run_ms = a1.ms; t.warm_run_ms = (a2.ms + a3.ms) / 2;
+  const sameInput = compare(a2.logits, ref, null, meta.floor_ids);
+  const inB = await preprocessFromImage(base + "/test_view.png", meta.mean, meta.std);
+  const b = await run(inB);
+  const jsPre = compare(b.logits, ref, null, meta.floor_ids);
+  let md = 0; for (let i = 0; i < inA.length; i++) md = Math.max(md, Math.abs(inA[i] - inB[i]));
+  let adapter = null;
+  if (navigator.gpu) { const ad = await navigator.gpu.requestAdapter(); if (ad) { const i = ad.info || {}; adapter = { vendor: i.vendor, architecture: i.architecture }; } }
+  log(`${device}: warm ${t.warm_run_ms.toFixed(0)} ms per view; same input: floor agreement ${(100 * sameInput.floor_mask_agreement).toFixed(2)} %`);
+  return { device, file, timings: t, same_input_as_pytorch: sameInput, browser_preprocessing: jsPre, preprocessing_max_abs_diff_vs_python: md, adapter, floor_ids: meta.floor_ids };
+};
+window.__ready = true;
+</script>

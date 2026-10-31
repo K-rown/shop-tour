@@ -1,0 +1,19 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  unit:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install (the unit tests need only NumPy and OpenCV; no footage, GPU or browser)
+        run: pip install numpy opencv-python-headless
+      - name: Unit tests
+        run: python qa/test_units.py

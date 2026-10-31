@@ -1,0 +1,16 @@
+raw/
+frames/
+tour/
+__pycache__/
+qa/shots/
+qa/shots_baseline/
+qa/report.json
+qa/work/
+docs/demo.gif
+tour_*/
+docs/demo.mp4
+models/text_det_ppocrv3_en.onnx
+models/plate_rtdetrv2/
+private/
+minimap.png
+qa/person_removal.jpg

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260" viewBox="0 0 400 260" role="img" aria-labelledby="t d">
+  <title id="t">Stops every 1.5 to 2 metres</title>
+  <desc id="d">Top-down plan of a room with shelves along two walls. A path winds through it with a stop marked every 1.5 to 2 metres, including at corners.</desc>
+  <rect width="400" height="260" fill="#f4f1ea"/>
+  <rect x="20" y="34" width="360" height="196" fill="#fff" stroke="#555" stroke-width="4"/>
+  <rect x="26" y="40" width="348" height="22" fill="#cfc6b0"/><rect x="26" y="40" width="22" height="184" fill="#cfc6b0"/>
+  <rect x="150" y="110" width="90" height="40" fill="#cfc6b0" stroke="#aaa"/>
+  <rect x="310" y="130" width="56" height="86" fill="#cfc6b0" stroke="#aaa"/>
+  <path d="M68 210 L68 150 L120 150 L120 82 L270 82 L270 170 L236 182" fill="none" stroke="#2b6cb0" stroke-width="3"/>
+  <g fill="#e8590c" stroke="#fff" stroke-width="2">
+    <circle cx="68" cy="210" r="7"/><circle cx="68" cy="180" r="7"/><circle cx="68" cy="150" r="7"/><circle cx="94" cy="150" r="7"/><circle cx="120" cy="150" r="7"/>
+    <circle cx="120" cy="116" r="7"/><circle cx="120" cy="82" r="7"/><circle cx="160" cy="82" r="7"/><circle cx="200" cy="82" r="7"/><circle cx="235" cy="82" r="7"/>
+    <circle cx="270" cy="82" r="7"/><circle cx="270" cy="126" r="7"/><circle cx="270" cy="170" r="7"/><circle cx="236" cy="182" r="7"/>
+  </g>
+  <g stroke="#555" stroke-width="1.5"><path d="M160 100 L200 100"/><path d="M160 96 L160 104 M200 96 L200 104"/></g>
+  <g font-family="system-ui, sans-serif" font-size="14" fill="#222">
+    <text x="180" y="122" text-anchor="middle" fill="#555" font-size="16">1.5 to 2 m</text>
+    <text x="68" y="252" text-anchor="middle" font-weight="700" font-size="18">start</text>
+    <text x="200" y="24" text-anchor="middle" font-weight="700" font-size="18">a stop every 1.5 to 2 m and at corners</text>
+    <text x="338" y="124" text-anchor="middle" fill="#555" font-size="16">shelves</text>
+  </g>
+</svg>

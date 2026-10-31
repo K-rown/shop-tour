@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260" viewBox="0 0 400 260" role="img" aria-labelledby="t d">
+  <title id="t">Wipe both lenses</title>
+  <desc id="d">The camera has a lens on each side. A smudged lens gives a hazy picture; a cloth wipes it clean before you start.</desc>
+  <rect width="400" height="260" fill="#f4f1ea"/>
+  <g font-family="system-ui, sans-serif" font-size="14" fill="#222">
+    <text x="200" y="28" text-anchor="middle" font-weight="700" font-size="19">wipe BOTH lenses before you start</text>
+  </g>
+  <rect x="150" y="60" width="100" height="130" rx="22" fill="#2f3640" stroke="#111" stroke-width="3"/>
+  <circle cx="200" cy="100" r="26" fill="#111" stroke="#666" stroke-width="3"/><circle cx="200" cy="100" r="14" fill="#2b4a7a"/>
+  <circle cx="200" cy="158" r="20" fill="#111" stroke="#666" stroke-width="3"/><circle cx="200" cy="158" r="10" fill="#2b4a7a"/>
+  <ellipse cx="190" cy="94" rx="14" ry="7" fill="#fff" opacity=".45"/>
+  <path d="M262 90 q40 -20 70 6 q22 24 -6 40 q-40 14 -70 -6 z" fill="#e8590c" opacity=".9"/>
+  <path d="M255 120 q18 -14 34 0 M262 134 q18 -14 34 0" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M110 108 L146 100" stroke="#b3261e" stroke-width="2"/>
+  <g font-family="system-ui, sans-serif" font-size="18" fill="#222" text-anchor="middle">
+    <text x="74" y="98" fill="#b3261e" font-weight="700">smudge =</text>
+    <text x="74" y="120">hazy picture,</text>
+    <text x="74" y="142">light streaks</text>
+    <text x="322" y="178" font-weight="700" fill="#1a7a3c">clean</text>
+    <text x="200" y="244" font-size="16" fill="#555">a fingerprint is the usual cause</text>
+  </g>
+</svg>

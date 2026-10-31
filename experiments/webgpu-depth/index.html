@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>WebGPU depth spike</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{font:14px system-ui,sans-serif;margin:16px;background:#111;color:#ddd}
+  pre{background:#1b1b1b;padding:10px;border-radius:6px;white-space:pre-wrap}
+  canvas{width:160px;height:160px;margin:0 6px 6px 0;background:#000}
+  button{font:inherit;padding:6px 12px}
+</style>
+<h3>Depth Anything V2 Small in the browser (experiment)</h3>
+<p>Runs on your own device with transformers.js (WebGPU, or WASM as fallback). The picture never leaves this page.
+Pick a panorama (equirectangular, 2:1); it is cut into the same 4 down-tilted views as <code>depth_panos.py</code>.</p>
+<p><input id="file" type="file" accept="image/*"> <select id="dev"><option>webgpu</option><option>wasm</option></select>
+<button id="go">Run</button></p>
+<div id="views"></div>
+<pre id="log">idle</pre>
+<script type="module">
+// Apache-2.0 library (transformers.js) and Apache-2.0 model (onnx-community/depth-anything-v2-small); both are fetched by the browser.
+import { pipeline, env, RawImage } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.1";
+const MODEL = "onnx-community/depth-anything-v2-small";
+const SIZE = 518, VIEWS = [0, 90, 180, -90].map(yaw => ({ yaw, pitch: -25, fov: 100 }));   // same as depth_panos.py
+const log = m => { document.getElementById("log").textContent += "\n" + m; };
+
+// pano (RGBA ImageData, 4096x2048) -> n x n RGB view, bilinear with horizontal wrap: the same maths as depth_panos.cut_view
+function cutView(img, v, n = SIZE) {
+  const { width: w, height: h, data } = img, out = new Uint8ClampedArray(n * n * 3);
+  const f = n / 2 / Math.tan(v.fov * Math.PI / 360), p = v.pitch * Math.PI / 180, y0 = v.yaw * Math.PI / 180;
+  const cp = Math.cos(p), sp = Math.sin(p), cy = Math.cos(y0), sy = Math.sin(y0);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    let x = i - n / 2 + 0.5, y = n / 2 - j - 0.5, z = f;
+    const l = Math.hypot(x, y, z); x /= l; y /= l; z /= l;
+    const y1 = cp * y + sp * z, z1 = -sp * y + cp * z;                 // Rx
+    const x2 = cy * x + sy * z1, z2 = -sy * x + cy * z1;               // Ry
+    const az = Math.atan2(x2, z2), el = Math.asin(Math.max(-1, Math.min(1, y1)));
+    const u = (az + Math.PI) / (2 * Math.PI) * w - 0.5, vv = (Math.PI / 2 - el) / Math.PI * h - 0.5;
+    const u0 = Math.floor(u), v0 = Math.floor(vv), fu = u - u0, fv = vv - v0;
+    const xa = ((u0 % w) + w) % w, xb = (xa + 1) % w, ya = Math.max(0, Math.min(h - 1, v0)), yb = Math.max(0, Math.min(h - 1, v0 + 1));
+    for (let c = 0; c < 3; c++) {
+      const a = data[(ya * w + xa) * 4 + c], b = data[(ya * w + xb) * 4 + c], d = data[(yb * w + xa) * 4 + c], e = data[(yb * w + xb) * 4 + c];
+      out[(j * n + i) * 3 + c] = (a * (1 - fu) + b * fu) * (1 - fv) + (d * (1 - fu) + e * fu) * fv;
+    }
+  }
+  return out;
+}
+
+let est = null, estDevice = null;
+async function adapterInfo() {
+  if (!navigator.gpu) return null;
+  const a = await navigator.gpu.requestAdapter();
+  if (!a) return null;
+  const i = a.info || (a.requestAdapterInfo ? await a.requestAdapterInfo() : {});
+  return { vendor: i.vendor, architecture: i.architecture, device: i.device, description: i.description };
+}
+
+// panoUrl: URL of an equirectangular picture. device: "webgpu" | "wasm". Returns timings and the 4 raw depth maps (518x518, float).
+window.runDepth = async function (panoUrl, device = "webgpu", dtype = "fp32") {
+  const t = {};
+  let t0 = performance.now();
+  if (!est || estDevice !== device + dtype) {
+    est = await pipeline("depth-estimation", MODEL, { device, dtype });
+    estDevice = device + dtype;
+    t.model_load_ms = performance.now() - t0;
+  } else t.model_load_ms = 0;
+  t0 = performance.now();
+  const bmp = await createImageBitmap(await (await fetch(panoUrl)).blob());
+  const cv = new OffscreenCanvas(4096, 2048), cx = cv.getContext("2d", { willReadFrequently: true });
+  cx.imageSmoothingQuality = "high"; cx.drawImage(bmp, 0, 0, 4096, 2048);
+  const pano = cx.getImageData(0, 0, 4096, 2048);
+  const imgs = VIEWS.map(v => cutView(pano, v));
+  t.decode_and_cut_ms = performance.now() - t0;
+  const maps = [], infer = [];
+  const host = document.getElementById("views"); host.textContent = "";
+  for (let k = 0; k < VIEWS.length; k++) {
+    t0 = performance.now();
+    const res = await est(new RawImage(imgs[k], SIZE, SIZE, 3));
+    infer.push(performance.now() - t0);
+    const d = res.predicted_depth, data = Float32Array.from(d.data);
+    maps.push(Array.from(data)); window.__lastDims = d.dims;
+    const c = document.createElement("canvas"); c.width = c.height = SIZE; host.appendChild(c);
+    const g = c.getContext("2d"), id = g.createImageData(SIZE, SIZE);
+    let lo = Infinity, hi = -Infinity; for (const x of data) { if (x < lo) lo = x; if (x > hi) hi = x; }
+    for (let i = 0; i < data.length; i++) { const q = 255 * (data[i] - lo) / (hi - lo || 1); id.data.set([q, q, q, 255], i * 4); }
+    g.putImageData(id, 0, 0);
+  }
+  t.infer_ms = infer; t.first_view_ms = infer[0]; t.warm_view_ms = infer.slice(1).reduce((a, b) => a + b, 0) / (infer.length - 1);
+  t.total_ms = t.decode_and_cut_ms + infer.reduce((a, b) => a + b, 0);
+  log(`${device}/${dtype}: first view ${infer[0].toFixed(0)} ms, then ${t.warm_view_ms.toFixed(0)} ms per view, total ${t.total_ms.toFixed(0)} ms (+ model load ${t.model_load_ms.toFixed(0)} ms)`);
+  return { timings: t, dims: window.__lastDims, maps, adapter: await adapterInfo(), webgpu: !!navigator.gpu };
+};
+
+document.getElementById("go").onclick = async () => {
+  const f = document.getElementById("file").files[0]; if (!f) return log("choose a panorama first");
+  const r = await window.runDepth(URL.createObjectURL(f), document.getElementById("dev").value);
+  log(JSON.stringify({ timings: r.timings, adapter: r.adapter }, null, 1));
+};
+window.__ready = true;
+</script>

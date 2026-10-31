@@ -1,0 +1,90 @@
+{
+ "device": "wasm",
+ "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+ "stops": {
+  "001": {
+   "correlation_per_view": [
+    1.0,
+    0.99997,
+    0.99994,
+    0.99997
+   ],
+   "correlation_mean": 0.99997,
+   "control_other_view_mean": 0.0905,
+   "timings_ms": {
+    "model_load_ms": 430,
+    "decode_and_cut_ms": 772,
+    "infer_ms": [
+     4590,
+     4610,
+     4549,
+     4454
+    ],
+    "first_view_ms": 4590,
+    "warm_view_ms": 4538,
+    "total_ms": 18974
+   },
+   "wall_s": 29.0
+  },
+  "010": {
+   "correlation_per_view": [
+    0.99997,
+    0.99993,
+    1.0,
+    0.99998
+   ],
+   "correlation_mean": 0.99997,
+   "control_other_view_mean": 0.5474,
+   "timings_ms": {
+    "model_load_ms": 0,
+    "decode_and_cut_ms": 860,
+    "infer_ms": [
+     4502,
+     4605,
+     4594,
+     4741
+    ],
+    "first_view_ms": 4502,
+    "warm_view_ms": 4647,
+    "total_ms": 19302
+   },
+   "wall_s": 29.1
+  },
+  "020": {
+   "correlation_per_view": [
+    0.99998,
+    1.0,
+    0.99998,
+    0.99999
+   ],
+   "correlation_mean": 0.99999,
+   "control_other_view_mean": 0.348,
+   "timings_ms": {
+    "model_load_ms": 0,
+    "decode_and_cut_ms": 775,
+    "infer_ms": [
+     4503,
+     4503,
+     4504,
+     4547
+    ],
+    "first_view_ms": 4503,
+    "warm_view_ms": 4518,
+    "total_ms": 18833
+   },
+   "wall_s": 28.5
+  }
+ },
+ "adapter": {
+  "vendor": "nvidia",
+  "architecture": "ampere",
+  "device": "",
+  "description": ""
+ },
+ "webgpu_available": true,
+ "page_errors": [
+  "Failed to load resource: the server responded with a status of 404 (File not found)",
+  "\u001b[0;93m2026-10-17 14:26:21.487399 [W:onnxruntime:, session_state.cc:1280 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an ",
+  "\u001b[0;93m2026-10-17 14:26:21.489199 [W:onnxruntime:, session_state.cc:1282 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+ ]
+}

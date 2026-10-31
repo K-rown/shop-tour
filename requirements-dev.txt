@@ -1,0 +1,3 @@
+# pip install -r requirements-dev.txt     (adds what the QA scripts need)
+-r requirements.txt
+playwright          # then: python -m playwright install chromium   (webkit and firefox optional)

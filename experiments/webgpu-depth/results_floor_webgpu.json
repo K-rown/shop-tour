@@ -1,0 +1,36 @@
+{
+ "device": "webgpu",
+ "timings": {
+  "model_load_ms": 4056.9000000059605,
+  "first_run_ms": 2730,
+  "warm_run_ms": 134.79999999701977
+ },
+ "same_input_as_pytorch": {
+  "floor_mask_agreement": 1,
+  "floor_iou": 1,
+  "top1_class_agreement": 1,
+  "logit_correlation": 0.9999999999987098,
+  "floor_share_browser": 0.42010498046875,
+  "floor_share_python": 0.42010498046875
+ },
+ "browser_preprocessing": {
+  "floor_mask_agreement": 0.99920654296875,
+  "floor_iou": 0.9981115630447415,
+  "top1_class_agreement": 0.998291015625,
+  "logit_correlation": 0.9998929813356541,
+  "floor_share_browser": 0.41943359375,
+  "floor_share_python": 0.42010498046875
+ },
+ "preprocessing_max_abs_diff_vs_python": 0.07002806663513184,
+ "adapter": {
+  "vendor": "nvidia",
+  "architecture": "ampere"
+ },
+ "floor_ids": [
+  3,
+  28,
+  52
+ ],
+ "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+ "page_errors": []
+}

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260" viewBox="0 0 400 260" role="img" aria-labelledby="t d">
+  <title id="t">Other arm tucked in</title>
+  <desc id="d">Seen from above. Left: the stick is vertical and the free arm is tucked against the body, so you are a small round shape. Right: the free arm sticks out, so a long shape shows in the floor.</desc>
+  <rect width="400" height="260" fill="#f4f1ea"/>
+  <g font-family="system-ui, sans-serif" font-size="20" fill="#222">
+    <text x="100" y="24" text-anchor="middle" font-weight="700" fill="#1a7a3c">RIGHT</text>
+    <text x="300" y="24" text-anchor="middle" font-weight="700" fill="#b3261e">WRONG</text>
+  </g>
+  <line x1="200" y1="30" x2="200" y2="240" stroke="#bbb" stroke-dasharray="4 4"/>
+  <g stroke="#d8d2c4" stroke-width="1">
+    <path d="M10 70H190M10 120H190M10 170H190M60 40V220M110 40V220M160 40V220"/>
+    <path d="M210 70H390M210 120H390M210 170H390M260 40V220M310 40V220M360 40V220"/>
+  </g>
+  <ellipse cx="100" cy="132" rx="26" ry="14" fill="#3a3a3a"/>
+  <circle cx="100" cy="124" r="11" fill="#e8c9a0" stroke="#222" stroke-width="2"/>
+  <path d="M82 140 Q100 150 118 140" stroke="#3a3a3a" stroke-width="7" fill="none" stroke-linecap="round"/>
+  <circle cx="100" cy="124" r="3" fill="#2b6cb0"/>
+  <ellipse cx="300" cy="132" rx="26" ry="14" fill="#3a3a3a"/>
+  <circle cx="300" cy="124" r="11" fill="#e8c9a0" stroke="#222" stroke-width="2"/>
+  <path d="M322 134 L372 100" stroke="#3a3a3a" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="376" cy="97" r="6" fill="#e8c9a0" stroke="#222" stroke-width="2"/>
+  <circle cx="300" cy="124" r="3" fill="#2b6cb0"/>
+  <g font-family="system-ui, sans-serif" font-size="18" fill="#222" text-anchor="middle">
+    <text x="100" y="190">arm tucked in:</text>
+    <text x="100" y="212">small round shape</text>
+    <text x="300" y="190">arm sticking out:</text>
+    <text x="300" y="212">long shape on floor</text>
+    <text x="200" y="248" font-size="16" fill="#555">as the camera sees it, looking down</text>
+  </g>
+</svg>

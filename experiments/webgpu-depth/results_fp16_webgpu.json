@@ -1,0 +1,90 @@
+{
+ "device": "webgpu",
+ "browser": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+ "stops": {
+  "001": {
+   "correlation_per_view": [
+    0.99997,
+    0.99994,
+    0.9997,
+    0.99994
+   ],
+   "correlation_mean": 0.99989,
+   "control_other_view_mean": 0.0878,
+   "timings_ms": {
+    "model_load_ms": 11846,
+    "decode_and_cut_ms": 1077,
+    "infer_ms": [
+     2568,
+     109,
+     76,
+     77
+    ],
+    "first_view_ms": 2568,
+    "warm_view_ms": 87,
+    "total_ms": 3906
+   },
+   "wall_s": 24.2
+  },
+  "010": {
+   "correlation_per_view": [
+    0.99991,
+    0.99963,
+    0.99996,
+    0.99991
+   ],
+   "correlation_mean": 0.99985,
+   "control_other_view_mean": 0.5493,
+   "timings_ms": {
+    "model_load_ms": 0,
+    "decode_and_cut_ms": 934,
+    "infer_ms": [
+     287,
+     74,
+     73,
+     75
+    ],
+    "first_view_ms": 287,
+    "warm_view_ms": 74,
+    "total_ms": 1442
+   },
+   "wall_s": 9.9
+  },
+  "020": {
+   "correlation_per_view": [
+    0.99995,
+    0.99998,
+    0.99995,
+    0.99997
+   ],
+   "correlation_mean": 0.99996,
+   "control_other_view_mean": 0.3484,
+   "timings_ms": {
+    "model_load_ms": 0,
+    "decode_and_cut_ms": 876,
+    "infer_ms": [
+     275,
+     74,
+     88,
+     85
+    ],
+    "first_view_ms": 275,
+    "warm_view_ms": 82,
+    "total_ms": 1399
+   },
+   "wall_s": 9.9
+  }
+ },
+ "adapter": {
+  "vendor": "nvidia",
+  "architecture": "ampere",
+  "device": "",
+  "description": ""
+ },
+ "webgpu_available": true,
+ "page_errors": [
+  "Failed to load resource: the server responded with a status of 404 (File not found)",
+  "\u001b[0;93m2026-10-17 17:43:31.149699 [W:onnxruntime:, session_state.cc:1280 VerifyEachNodeIsAssignedToAnEp] Some nodes were not assigned to the preferred execution providers which may or may not have an ",
+  "\u001b[0;93m2026-10-17 17:43:31.152099 [W:onnxruntime:, session_state.cc:1282 VerifyEachNodeIsAssignedToAnEp] Rerunning with verbose output on a non-minimal build will show node assignments.\u001b[m"
+ ]
+}
