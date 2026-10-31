@@ -28,6 +28,24 @@ def az(v):
     return float(np.degrees(np.arctan2(v[0], v[2])))
 
 
+def run_sfm_apart(frames, work, width, features, window):
+    """A detail try in a process of its own (2026-10-31: COLMAP's matcher aborted in C++ on a retry at 8192 features and took
+    the whole step with it, throwing away a map that had already placed 8 of 15 stops). A try that dies is no map; the
+    map already made stands."""
+    import subprocess, sys
+    here = os.path.dirname(os.path.abspath(__file__))
+    code = "import sys; sys.path.insert(0, sys.argv[1]); import map_stops as m; m.run_sfm(sys.argv[2], sys.argv[3], int(sys.argv[4]), int(sys.argv[5]), int(sys.argv[6]))"
+    r = subprocess.run([sys.executable, "-c", code, here, frames, work, str(width), str(features), str(window)])
+    pts = json.load(open(os.path.join(frames, "points.json")))
+    best = os.path.join(work, "best")
+    if r.returncode != 0:
+        print(f"the {width} px / {features} features try stopped (exit {r.returncode}); the map already made is kept", flush=True)
+        return pts, None
+    if not os.path.isdir(best) or not os.listdir(best):
+        return pts, None
+    return pts, pycolmap.Reconstruction(best)
+
+
 def run_sfm(frames, work, width=2048, features=4096, window=0):
     img_dir, mask_dir = os.path.join(work, "images"), os.path.join(work, "masks")
     shutil.rmtree(work, ignore_errors=True)
@@ -341,7 +359,7 @@ def main():
                 continue
             win = force_win
         wdir = a.work if t == 0 else f"{a.work}_try{t}"
-        pts, rec = run_sfm(a.frames, wdir, width, nfeat, win)
+        pts, rec = (run_sfm if t == 0 else run_sfm_apart)(a.frames, wdir, width, nfeat, win)
         if rec is not None and (kept is None or rec.num_reg_images() > kept[1].num_reg_images()):
             kept = (pts, rec, wdir)
         if rec is not None and rec.num_reg_images() >= len(pts):
