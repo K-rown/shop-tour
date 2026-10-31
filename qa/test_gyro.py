@@ -103,9 +103,11 @@ def main():
             pg.evaluate("([x, y]) => { const e = document.elementFromPoint(x, y); return !!e && e.id === 'bGyro'; }", [cx, bb["y"] + bb["height"] + 3])
         check("its target is at least 44 px tall and wide", hit and bb["width"] >= 44 and bb["height"] + 8 >= 44, f"{bb['width']:.0f}x{bb['height']:.0f} drawn, +5 px each side")
 
-        geo = pg.evaluate("""() => { const r = document.querySelector('#reel button').getBoundingClientRect(), n = document.getElementById('nav').getBoundingClientRect();
-          return { reelTop: r.top, reelBottom: r.bottom, navBottom: n.bottom, h: innerHeight }; }""")
-        check("the reel and the thumb cluster rest clear of the phone's 52 px foot strip", geo["reelBottom"] <= geo["h"] - 52 and geo["navBottom"] <= geo["reelTop"] - 4, json.dumps(geo))
+        geo = pg.evaluate("""() => { const b = id => document.getElementById(id).getBoundingClientRect(), r = document.querySelector('#reel button').getBoundingClientRect(), t = b('tools'), n = b('nav');
+          return { reelTop: r.top, reelBottom: r.bottom, toolsTop: t.top, toolsBottom: t.bottom, navTop: n.top, navBottom: n.bottom, h: innerHeight }; }""")
+        # the round-glass layout (2026-10-31): the stops, under them the tools, under them the walk keys — none over another, all clear of the strip
+        check("the reel, the tools and the walk keys stack without overlapping, clear of the phone's 52 px foot strip",
+              geo["reelBottom"] <= geo["toolsTop"] and geo["toolsBottom"] <= geo["navTop"] and geo["navBottom"] <= geo["h"] - 52, json.dumps(geo))
         lon0, lat0 = st(pg)["lon"], st(pg)["lat"]
         tilt(pg, 0, 90, 0); tilt(pg, 45, 120, 0)
         s = st(pg)
