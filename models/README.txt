@@ -1,1 +1,2 @@
 face_detection_yunet_2023mar.onnx: YuNet face detector from opencv_zoo (https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet), MIT licence (LICENSE-yunet.txt).
+text_det_ppocrv3_en.onnx, plate_rtdetrv2/: fetched once by tools/fetch_pii_models.py (not in git): PaddleOCR PP-OCRv3 DBNet text detection via opencv_zoo (Apache-2.0, LICENSE-ppocr.txt) and justjuu/rtdetr-v2-license-plate-detection (Apache-2.0 per its model card).

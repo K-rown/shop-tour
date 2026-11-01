@@ -1,6 +1,6 @@
 """How long until a visitor sees the first picture? Emulated touch phone, throttled network and CPU (Chromium only).
 
-Usage: python qa/load_time.py --tour D:/walks/example/walk1/tour [--runs 3] [--json qa/load_time.json]
+Usage: python qa/load_time.py --tour D:/walks/place/2026-01-01/tour [--runs 3] [--json qa/load_time.json]
 For each network profile it opens the tour with an empty cache `runs` times and records, from the moment of navigation:
   first_view_ms  until the viewer is ready and showing a picture (window.__tour exists, not busy)
   sharp_ms       until the 4K picture is the one on screen (res label '4K'/'8K tiles'/'8K')

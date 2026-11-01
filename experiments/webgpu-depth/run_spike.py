@@ -1,6 +1,6 @@
 """Drive index.html in Chrome and compare its depth maps with the Python ones (frames/depth/<id>_v<k>.npy) for a few stops.
 
-Usage: python experiments/webgpu-depth/run_spike.py --walk D:/walks/example/walk1 --stops 001,010,020 [--device webgpu|wasm|both] [--profile DIR]
+Usage: python experiments/webgpu-depth/run_spike.py --walk D:/walks/place/2026-01-01 --stops 001,010,020 [--device webgpu|wasm|both] [--profile DIR]
 Experiment only: nothing here is used by the pipeline. Results go to results_<device>.json (numbers only, no pictures).
 """
 import argparse, http.server, json, os, socket, threading, time

@@ -1,9 +1,10 @@
 """Fit the lens model by making the two lenses agree where they overlap.
 
 Usage: python calibrate_stitch.py --src frames/src --out frames/calib.json
-Needs pairs f_<t>.png / b_<t>.png (see PLAN.md for the ffmpeg line that makes them).
+Needs pairs f_<t>.png / b_<t>.png (tour.py makes them; run it, or stops/calib, rather than building them by hand).
 """
-import argparse, glob, os
+import argparse, glob, os, threading
+from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import cv2
 from scipy.optimize import least_squares
@@ -43,24 +44,49 @@ def local_norm(x, valid):
     return d / s
 
 
+_SIDE = {}                  # (lens, its parameters, the problem) -> that lens's band geometry and the pictures seen through it
+_SIDE_LOCK = threading.Lock()
+SIDE_KEEP = 40
+LENS_PARAMS = {"A": ("fA", "cxA", "cyA", "kA"), "F": ("fF", "cxF", "cyF", "kF", "rx", "ry", "rz")}      # what each lens's geometry depends on (lens A is the pano's own frame)
+
+
+def lens_side(which, P, bands, pairs):
+    """For one lens: the pixel coordinates of every band, where the lens sees (theta under 94 degrees), and each pair's picture of that lens remapped into the band. They depend
+    on this lens's own parameters only, so a finite-difference step of the fit that moves a parameter of the other lens (or the same lens's twin, for the three rotation
+    angles) finds them made already: the same numbers, half the work of a Jacobian."""
+    key = (which, tuple(P[n] for n in LENS_PARAMS[which]), id(bands), id(pairs))
+    with _SIDE_LOCK:
+        hit = _SIDE.get(key)
+    if hit is not None and hit[2] is bands and hit[3] is pairs:          # (the entry holds the problem, so an id is never taken for another problem's)
+        return hit[0], hit[1]
+    geo = []
+    for v in bands:
+        u, vv, th = sl.project(sl.to_lens(v, which, P), which, P)
+        geo.append((u, vv, th < np.radians(94)))
+    col = 0 if which == "A" else 1
+    rem = [[cv2.remap(pr[col], u, vv, cv2.INTER_LINEAR) for (u, vv, _) in geo] for pr in pairs]
+    with _SIDE_LOCK:
+        if len(_SIDE) >= SIDE_KEEP:
+            _SIDE.pop(next(iter(_SIDE)))
+        _SIDE[key] = (geo, rem, bands, pairs)
+    return geo, rem
+
+
 def residuals(x, pairs, bands, P0):
     P = dict(P0)
     for name, val in zip(sl.PARAM_NAMES, x):
         P[name] = val
     # the band geometry depends on the parameters only, not on the frame pair: compute it once per evaluation
     # (it used to be recomputed for every pair, which was ~3/4 of the 4 minutes this step took)
-    geo = []
-    for v in bands:
-        uA, vA, thA = sl.project(sl.to_lens(v, "A", P), "A", P)
-        uF, vF, thF = sl.project(sl.to_lens(v, "F", P), "F", P)
-        geo.append((uA, vA, uF, vF, ((thA < np.radians(94)) & (thF < np.radians(94))).astype(np.float32)))
+    gA, rA = lens_side("A", P, bands, pairs); gF, rF = lens_side("F", P, bands, pairs)
+    valid = [(a[2] & f[2]).astype(np.float32) for a, f in zip(gA, gF)]
     out = []
-    for A, F in pairs:
-        for uA, vA, uF, vF, valid in geo:
-            a = cv2.remap(A, uA, vA, cv2.INTER_LINEAR); f = cv2.remap(F, uF, vF, cv2.INTER_LINEAR)
-            r = (local_norm(a, valid) - local_norm(f, valid)) * valid   # invalid pixels contribute 0, so the length is fixed
+    for pi in range(len(pairs)):
+        for bi in range(len(bands)):
+            a, f, vd = rA[pi][bi], rF[pi][bi], valid[bi]
+            r = (local_norm(a, vd) - local_norm(f, vd)) * vd   # invalid pixels contribute 0, so the length is fixed
             # a penalty for shrinking the overlap, otherwise the fit can 'win' by making it disappear
-            out.append(r[::3, ::3].ravel()); out.append(np.array([(1.0 - valid.mean()) * 40.0]))
+            out.append(r[::3, ::3].ravel()); out.append(np.array([(1.0 - vd.mean()) * 40.0]))
     return np.concatenate(out)
 
 
@@ -81,9 +107,15 @@ def main():
     n0 = np.linalg.norm(residuals(x0, pairs, bands, P0))
     print("start residual %.1f  (%d pairs)" % (n0, len(pairs)))
     x = x0.copy()
+    import inspect
+    kw = {}
+    pool = None
+    if "workers" in inspect.signature(least_squares).parameters:      # scipy 1.16+: the Jacobian's columns are independent evaluations; cv2 releases the GIL, so they run beside each other
+        pool = ThreadPoolExecutor(max_workers=min(len(x), os.cpu_count() or 1))
+        kw["workers"] = pool.map                                      # (the same differences, bit for bit, as the serial Jacobian: only who computes which column changes)
     for rnd in range(int(os.environ.get("ROUNDS", 4))):      # 8 rounds only improve the residual by <1%; held-out score is the same from 5 rounds down to 3
         sol = least_squares(lambda z: residuals(x0 * 0 + x + z * scale, pairs, bands, P0), np.zeros(len(x)),
-                            x_scale=1.0, diff_step=0.3, max_nfev=40, verbose=0)
+                            x_scale=1.0, diff_step=0.3, max_nfev=40, verbose=0, **kw)
         x = x + sol.x * scale
         print("round %d residual %.1f" % (rnd + 1, np.linalg.norm(sol.fun)))
     P = dict(P0)

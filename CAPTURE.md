@@ -41,13 +41,15 @@ You need a 360 camera on a stick (Insta360 X-series was used), about 10 minutes 
 
 ## If you do not follow this
 
-Every stop goes through a privacy check after the person holding the stick is painted out (see the README). A stop that fails is **held back**: it is left out of the tour, and the build ends by telling you where the **review page** is (`frames/review/review.html` in the walk's folder; it is not inside the tour folder, because it shows the held pictures). Each held stop is listed with its picture, the straight-down view and the reason.
+Every stop goes through a privacy check after the person holding the stick is painted out (see [docs/GUIDE.md](docs/GUIDE.md#privacy-gate)). A stop that fails is **held back**: it is left out of the tour, and the build ends by telling you where the **review page** is (`frames/review/review.html` in the walk's folder; it is not inside the tour folder, because it shows the held pictures). Each held stop is listed with its picture, the straight-down view and the reason.
 
 | What you did | What the review page says | Why |
 |---|---|---|
 | Stick leaning, camera off to the side | *a person-sized shape is still near the camera* or *something is more than 15 cm above the floor where you stood* | too much of you is in the picture to rebuild the floor under it cleanly |
 | Arm or bag sticking out | *something ... stands more than 15 cm above the floor where you stood* | what sticks out is a separate shape that is taller than the floor |
-| Someone else walked through the shot | *another person in the picture* | a person detector runs over the whole picture of every stop |
+| Someone else walked through the shot, or stood far off | *another person in the picture* | a person detector runs over the whole picture of every stop; a person seen by two views at the horizon is held even at a low score (a flagger 30–40 m off once scored under the detector's line) |
+| Your crew is in nearly every stop (a work zone) | *another person in the picture* on most stops | by default other people are painted out and only the stops where that could not be done are held; `SHOP_TOUR_REMOVE_OTHERS=0` holds every one of them instead (docs/GUIDE.md, step 9). Plates, faces, printed names and other text (a van door's phone number, a sign) in a kept stop are blurred (step 9b; run `python tools/fetch_pii_models.py` once to download its two small free models) |
+| A toolbox, a chair or a machine base stood right beside you | *a person-sized shape is still near the camera* | the check cannot tell real clutter from a leftover of you unless two neighbouring stops see the same thing from two sides |
 | A face is visible anywhere | *a face ...* | a face detector runs over the whole picture; faces are blurred in anything that is kept |
 | Stops too far apart, or too few neighbours | *no floor to measure against* | the floor under you is only copied where two neighbouring stops agree on it; with no neighbours the check cannot verify the stop |
 | Smudged lens | nothing | a hazy picture is not detected, so wipe the lenses |

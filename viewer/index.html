@@ -19,32 +19,43 @@
   #stage:active { cursor: grabbing; }
   .pill { background: var(--pill); border: 1px solid var(--line); border-radius: 999px;
     backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-  #title { position: fixed; top: max(12px, env(safe-area-inset-top)); left: 16px; padding: 8px 14px;
-    display: flex; gap: 10px; align-items: baseline; max-width: calc(100vw - 32px - 150px); }
-  #title { overflow: hidden; }
-  #title b { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-  #title span { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-  #map { position: fixed; top: max(12px, env(safe-area-inset-top)); right: 16px; width: 150px; height: 150px;
-    border-radius: 14px; background: var(--pill); border: 1px solid var(--line); cursor: pointer; }
-  #maplabel { position: fixed; top: calc(max(12px, env(safe-area-inset-top)) + 154px); right: 16px; width: 150px;
-    text-align: center; color: var(--muted); font-size: 11px; }
-  #reel { position: fixed; left: 0; right: 0; bottom: max(10px, env(safe-area-inset-bottom)); display: flex; gap: 8px;
-    overflow-x: auto; padding: 0 16px 4px; scrollbar-width: none; }
-  #reel::-webkit-scrollbar { display: none; }
-  #reel button { flex: 0 0 auto; width: 64px; height: 64px; border-radius: 12px; border: 2px solid transparent;
-    padding: 0; overflow: hidden; background: #222 center/cover; position: relative; cursor: pointer; opacity: .78; }
-  #reel button.on { border-color: var(--accent); opacity: 1; }
-  #reel button i { position: absolute; left: 4px; bottom: 3px; font: 600 11px/1 system-ui; font-style: normal;
-    color: #fff; text-shadow: 0 1px 3px #000; }
-  #tools button { width: 44px; height: 44px; border-radius: 50%; color: var(--ink); font-size: 18px;
-    background: var(--pill); border: 1px solid var(--line); cursor: pointer; }
-  #tools button:active { background: rgba(255,255,255,.25); }
-  #tools { position: fixed; left: 16px; bottom: calc(max(10px, env(safe-area-inset-bottom)) + 84px); display: flex; gap: 6px; }
-  #tools button { font-size: 13px; width: auto; padding: 0 14px; border-radius: 999px; }
-  #tools button.on { background: var(--accent); color: #111; border-color: var(--accent); }
+  /* THE MAP, BIG (2026-10-30 — the owner: the little map tells him where a far stop is "but you don't show the path that I walked"): a tap on the
+     small map opens the same map over the whole glass — the walked path, every stop numbered, the ones he can walk to from here brighter, the
+     view cone — and a tap on a stop there glides to it */
+  #mapview { position: fixed; inset: 0; z-index: 6; display: none; background: rgba(15,16,18,.97); }
+  #mapview.show { display: block; }
+  #mapview canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+  #mapview .bar { position: absolute; left: 0; right: 0; top: 0; display: flex; gap: 8px; align-items: center; padding: calc(max(12px, env(safe-area-inset-top))) 16px 10px; z-index: 1; pointer-events: none; }
+  #mapview .bar b { font-weight: 600; }
+  #mapview .bar span { color: var(--muted); font-size: 13px; }
+  #mapview .bar button { margin-left: auto; height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--pill); color: var(--ink); font-size: 14px; cursor: pointer; pointer-events: auto; }
+  #mapview .key { position: absolute; left: 16px; bottom: calc(max(52px, env(safe-area-inset-bottom)) + 12px); color: var(--muted); font-size: 12px; line-height: 1.5; pointer-events: none; }
+  #mapview .key i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin: 0 6px -1px 0; font-style: normal; }
   #measure { position: fixed; left: 50%; top: calc(max(12px, env(safe-area-inset-top)) + 54px); transform: translateX(-50%); padding: 8px 14px; border-radius: 999px;
     font: 600 15px system-ui, sans-serif; background: var(--pill); border: 1px solid var(--line); color: var(--ink); display: none; z-index: 4; white-space: nowrap; }
   #measure.show { display: block; }
+  .pin { position: fixed; left: 0; top: 0; z-index: 3; display: none; width: 30px; height: 30px; margin: -30px 0 0 -15px; padding: 0; border: 2px solid #fff; border-radius: 50% 50% 50% 0;
+    transform-origin: 0 100%; background: #2fbf71; color: #fff; font: 700 14px/26px system-ui, sans-serif; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  .pin i { display: block; font-style: normal; }
+  .pp { position: fixed; left: 0; top: 0; z-index: 3; display: none; width: 44px; height: 44px; margin: -22px 0 0 -22px; padding: 0; border: 0; background: none; cursor: pointer; }
+  .pp i { display: block; width: 36px; height: 36px; margin: 4px; border-radius: 50%; border: 1.5px solid #fff; background: #222 center/cover; box-shadow: 0 2px 6px rgba(0,0,0,.5); }
+  .pp em { position: absolute; left: 50%; top: 40px; transform: translateX(-50%); font: 600 11px/1 system-ui, sans-serif; font-style: normal; color: #fff; text-shadow: 0 1px 3px #000; white-space: nowrap; pointer-events: none; }
+  .pp i { transform-origin: 50% 50%; }
+  #pbox { position: fixed; inset: 0; z-index: 8; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 64px 16px 64px; background: rgba(0,0,0,.86); }
+  #pbox.show { display: flex; }
+  #pbox img { max-width: 100%; max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px); border-radius: 10px; background: #222; object-fit: contain; }
+  #pbox .cap { max-width: min(640px, 100%); text-align: center; }
+  #pbox .cap small { display: block; color: var(--muted); margin-top: 2px; }
+  #pbox button { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 16px; height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--line); background: var(--pill); color: var(--ink); font-size: 14px; cursor: pointer; }
+  #noteEd { position: fixed; left: 50%; bottom: 0; transform: translateX(-50%); width: min(520px, 100vw); z-index: 7; display: none; padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    background: rgba(24,26,29,.97); border: 1px solid var(--line); border-radius: 16px 16px 0 0; color: var(--ink); font: 14px system-ui, sans-serif; }
+  #noteEd.show { display: block; }
+  #noteEd textarea { width: 100%; box-sizing: border-box; min-height: 84px; border-radius: 10px; border: 1px solid var(--line); background: #111; color: var(--ink); padding: 10px; font: 16px system-ui, sans-serif; resize: vertical; }
+  #noteEd img { max-width: 100%; max-height: 180px; border-radius: 8px; display: block; margin: 8px 0; }
+  #noteEd .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; align-items: center; }
+  #noteEd button, #noteEd label.btn { height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--pill); color: var(--ink); font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; }
+  #noteEd button.primary { background: var(--accent); color: #111; border-color: var(--accent); }
+  #noteEd small { color: var(--muted); display: block; margin-top: 6px; }
   #planview { position: fixed; inset: 0; z-index: 6; display: none; background: rgba(15,16,18,.94); overflow: auto; -webkit-overflow-scrolling: touch; }
   #planview.show { display: block; }
   #planview .bar { position: sticky; top: 0; display: flex; gap: 8px; align-items: center; padding: 10px 12px; background: rgba(15,16,18,.96); z-index: 1; }
@@ -72,39 +83,132 @@
   #help kbd { color: var(--ink); font: 600 12px ui-monospace, monospace; border: 1px solid var(--line);
     border-radius: 5px; padding: 1px 5px; }
   #load { position: fixed; inset: 0; display: grid; place-items: center; color: var(--muted); pointer-events: none; }
-  @media (max-width: 520px) {
-    #map { width: 112px; height: 112px; }
-    #maplabel { width: 112px; top: calc(max(12px, env(safe-area-inset-top)) + 116px); }
-    #title { max-width: calc(100vw - 32px - 124px); }
+  /* THE BLACK SCREEN (2026-10-30 — the owner's Android app sometimes opened a tour on black until a force-close): when the 3D context is lost
+     and does not come back, or the first frames draw nothing, the page says so in words with one key that brings the drawing back */
+  #glfail { position: fixed; inset: 0; z-index: 9; display: none; place-items: center; background: #0e0f10; padding: 24px; text-align: center; }
+  #glfail.show { display: grid; }
+  #glfail p { margin: 0 0 16px; max-width: 320px; color: var(--ink); font-size: 15px; line-height: 1.4; }
+  #glfail button { height: 48px; padding: 0 24px; border-radius: 999px; border: 0; background: #fff; color: #111; font: 600 15px system-ui, sans-serif; cursor: pointer; }
+  /* THE GLASS (2026-10-31 — the owner approved the round-glass mockup: "they're dope, implement them"). Every control floats over the photo as
+     dark round glass: the place and the stop at the top, the round map under them at the right; at the foot the stops as round pictures (the ones
+     walked wear a white rim, this one is bigger in a blue ring), the tools as round keys with their word under them, the big white Walk forward key
+     with ‹ › beside it, and one line of hint. A soft shade at the top and the foot keeps white words readable on any photo. Nothing operable rests
+     in a phone's 52 px foot strip (Android's nav bar covers it and reports no safe-area inset). */
+  :root { --glass: rgba(12,13,14,.58); --glass-line: rgba(255,255,255,.16); --you: #0b57d0; --you-hi: #4c8df6;
+    --top: max(12px, env(safe-area-inset-top)); --foot: max(24px, env(safe-area-inset-bottom)); }
+  @media (pointer: coarse) { :root { --foot: max(52px, env(safe-area-inset-bottom)); } }
+  [hidden] { display: none !important; }
+  .gb { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none; padding: 0; color: #fff; cursor: pointer;
+    background: var(--glass); border: 1px solid var(--glass-line); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .gb svg { width: 22px; height: 22px; display: block; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  #shade { position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background: linear-gradient(rgba(0,0,0,.5), rgba(0,0,0,0) 150px), linear-gradient(0deg, rgba(0,0,0,.66), rgba(0,0,0,0) 340px); }
+  #top { position: fixed; left: 16px; right: 16px; top: var(--top); display: flex; align-items: center; gap: 12px; z-index: 2; pointer-events: none; }
+  #top > * { pointer-events: auto; }
+  #title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-shadow: 0 1px 4px rgba(0,0,0,.6); pointer-events: none; }
+  #title b { font-size: 17px; line-height: 22px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #title span { font-size: 14px; line-height: 19px; color: rgba(255,255,255,.78); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #title span.dist { color: rgba(255,255,255,.78); }
+  #times { position: fixed; left: 16px; top: calc(var(--top) + 58px); right: 120px; display: flex; gap: 6px; z-index: 2; overflow-x: auto; scrollbar-width: none; }
+  #times::-webkit-scrollbar { display: none; }
+  #times a { flex: none; height: 44px; padding: 0 16px; border-radius: 22px; display: flex; align-items: center; font: 600 15px/1 system-ui, sans-serif; color: #fff;
+    text-decoration: none; background: var(--glass); border: 1px solid rgba(255,255,255,.26); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); font-variant-numeric: tabular-nums; }
+  #times a[aria-current="true"] { background: #fff; color: #111; border-color: #fff; }
+  #map { position: fixed; top: calc(var(--top) + 58px); right: 16px; width: 86px; height: 86px; border-radius: 50%; z-index: 2;
+    background: rgba(22,23,25,.92); border: 2px solid rgba(255,255,255,.38); cursor: pointer; }
+  #maplabel { position: fixed; top: calc(var(--top) + 148px); right: 16px; width: 86px; display: flex; justify-content: center; white-space: nowrap; z-index: 2;
+    font-size: 12px; font-weight: 500; color: rgba(255,255,255,.8); text-shadow: 0 1px 3px rgba(0,0,0,.7); pointer-events: none; }
+  #dock { position: fixed; left: 0; right: 0; bottom: var(--foot); z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none; }
+  #dock > * { pointer-events: auto; }
+  #reel { align-self: stretch; display: flex; align-items: center; gap: 10px; overflow-x: auto; padding: 6px 16px 10px; scrollbar-width: none; }
+  #reel::-webkit-scrollbar { display: none; }
+  #reel button:first-child { margin-left: auto; } #reel button:last-child { margin-right: auto; }
+  #reel button { flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; padding: 0; position: relative; cursor: pointer;
+    background: #333 center/cover; border: 2px solid rgba(255,255,255,.34); }
+  #reel button.seen { border-color: #fff; }
+  #reel button.on { width: 58px; height: 58px; border: 3px solid #fff; box-shadow: 0 0 0 3px var(--you); }
+  #reel button i { position: absolute; left: 50%; bottom: -8px; transform: translateX(-50%); min-width: 18px; padding: 0 5px; border-radius: 8px;
+    font: 700 10.5px/16px system-ui, sans-serif; font-style: normal; color: #fff; background: rgba(0,0,0,.8); pointer-events: none; }
+  #tools { display: flex; justify-content: space-around; gap: 4px; width: min(100%, 460px); padding: 6px 10px; margin: -6px 0; overflow-x: auto;   /* the padding keeps each key's wider target (::before) inside the scroller's clip */ scrollbar-width: none; }
+  #tools::-webkit-scrollbar { display: none; }
+  #tools button { flex: 0 0 auto; min-width: 58px; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 0; position: relative; cursor: pointer;
+    background: none; border: 0; color: rgba(255,255,255,.88); font: 500 12px/14px system-ui, sans-serif; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+  #tools button::before { content: ''; position: absolute; inset: -5px 0; }   /* the whole column, a little past it, takes the press */
+  #tools button .gb { width: 46px; height: 46px; cursor: inherit; }
+  #tools button .w { white-space: nowrap; pointer-events: none; }
+  #tools button.on .gb, #tools button[aria-pressed="true"] .gb { background: #fff; color: #111; border-color: #fff; }
+  #tools button:active .gb { background: rgba(255,255,255,.3); }
+  #nav { display: flex; gap: 28px; align-items: center; }
+  #nav button { width: 52px; height: 52px; }
+  #nav button#bGo { width: 84px; height: 84px; background: #fff; color: #111; border: 0; box-shadow: 0 0 0 5px rgba(255,255,255,.26), 0 4px 16px rgba(0,0,0,.35); }
+  #nav button#bGo svg { width: 34px; height: 34px; stroke-width: 2.2; transition: transform .18s ease-out; }
+  #nav button:disabled { opacity: .3; cursor: default; }
+  #nav button:not(:disabled):active { transform: scale(.94); }
+  #hint { max-width: calc(100vw - 32px); text-align: center; font-size: 13.5px; line-height: 18px; color: rgba(255,255,255,.82); text-shadow: 0 1px 3px rgba(0,0,0,.75);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transition: opacity .3s; pointer-events: none; }
+  #hint.show { opacity: 1; }
+  @media (max-height: 760px) {          /* a short glass (360 x 640): everything a step smaller so the photo keeps the middle */
+    #dock { gap: 8px; }
+    #reel { gap: 8px; padding: 5px 16px 9px; }
+    #reel button.on { width: 54px; height: 54px; }
+    #tools button { min-width: 52px; gap: 3px; font-size: 11.5px; } #tools button .gb { width: 42px; height: 42px; }
+    #nav { gap: 22px; } #nav button { width: 48px; height: 48px; } #nav button#bGo { width: 68px; height: 68px; } #nav button#bGo svg { width: 28px; height: 28px; }
+    #map { width: 76px; height: 76px; } #maplabel { width: 76px; top: calc(var(--top) + 136px); }
   }
-  @media (max-width: 380px) {
-    #title { left: 8px; padding: 6px 10px; gap: 6px; font-size: 12px; max-width: calc(100vw - 16px - 100px); }
-    #map { right: 8px; width: 88px; height: 88px; }
-    #maplabel { width: 88px; right: 8px; top: calc(max(12px, env(safe-area-inset-top)) + 92px); }
+  @media (max-height: 560px) { #hint { display: none; } }
+  @media (min-width: 900px) and (pointer: fine) {        /* a desktop: a bigger map, the foot cluster as it is on a phone */
+    #map { width: 132px; height: 132px; } #maplabel { width: 132px; top: calc(var(--top) + 196px); }
   }
+  @media (prefers-reduced-motion: reduce) { #nav button#bGo svg, #hint, #toast { transition: none; } #nav button:not(:disabled):active { transform: none; } }
 </style>
 </head>
 <body>
 <div id="stage" role="application" aria-label="360 degree view: drag to look around, click or tap the floor to move"></div>
 <div id="load">Loading tour…</div>
-<div id="title" class="pill"><b id="name">Walkthrough</b><span id="count"></span></div>
-<canvas id="map" title="Map (approximate)"></canvas>
-<div id="maplabel">map is approximate</div>
-<div id="tools">
-  <button id="bHelp" class="pill" aria-label="Help">?</button>
-  <button id="bDoll" class="pill" aria-label="Dollhouse: see the whole place from above" hidden>Dollhouse</button>
-  <button id="bPlan" class="pill" aria-label="Floor plan with measurements" hidden>Plan</button>
-  <button id="bMeas" class="pill" aria-label="Measure: tap two points">Measure</button>
-  <button id="bUp" class="pill" title="Move rings toward the horizon" hidden>Rings ▲</button>
-  <button id="bDown" class="pill" title="Move rings down" hidden>Rings ▼</button>
+<div id="glfail" role="alert"><div><p id="glfailWords">The picture stopped drawing on this screen.</p><button id="glfailGo">Tap to reload</button></div></div>
+<div id="shade"></div>
+<div id="top">
+  <button id="bBack" class="gb" aria-label="Back" hidden><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <div id="title"><b id="name">Walkthrough</b><span id="count"></span></div>
+  <button id="bShare" class="gb" aria-label="Share this tour" hidden><svg viewBox="0 0 24 24"><path d="M12 15V3.5M7.5 8 12 3.5 16.5 8"/><path d="M5 12v7.5h14V12"/></svg></button>
 </div>
+<nav id="times" aria-label="Times this place was walked" hidden></nav>
+<canvas id="map" role="button" tabindex="0" aria-label="Map — tap to open it big" title="Map — tap to open it big"></canvas>
+<div id="maplabel">Map</div>
+<div id="mapview" role="dialog" aria-label="Map of the walk"><canvas id="bigmap"></canvas>
+  <div class="bar"><b>Map</b><span id="bigmapWords"></span><button id="bigmapClose">Close</button></div>
+  <div class="key"><i style="background:#0b57d0;box-shadow:0 0 0 2px #fff"></i>you are here · <i style="background:#fff"></i>a stop you can walk to from here · <i style="background:rgba(255,255,255,.5)"></i>a stop · the line is the path walked</div></div>
+<div id="dock">
 <div id="reel"></div>
+<div id="tools">
+  <button id="bMeas" aria-label="Measure: tap two points"><span class="gb"><svg viewBox="0 0 24 24"><path d="M3.5 16.5 16.5 3.5l4 4-13 13z"/><path d="M7.5 12.5l2 2M10.5 9.5l2 2M13.5 6.5l2 2"/></svg></span><span class="w">Measure</span></button>
+  <button id="bNote" aria-label="Pin a note: tap a spot, or press and hold, or right-click"><span class="gb"><svg viewBox="0 0 24 24"><path d="M5 4h14v11l-5 5H5z"/><path d="M14 20v-5h5"/></svg></span><span class="w">Note</span></button>
+  <button id="bPlay" aria-pressed="false" aria-label="Play: walk the tour by itself, stop by stop"><span class="gb"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10-6.5z"/></svg></span><span class="w">Play</span></button>
+  <button id="bGyro" aria-pressed="false" aria-label="Motion: turn the view by turning your phone" hidden><span class="gb"><svg viewBox="0 0 24 24"><rect x="7.5" y="3" width="9" height="18" rx="2"/><path d="M3.5 9c-1 2-1 4 0 6M20.5 9c1 2 1 4 0 6"/></svg></span><span class="w">Motion</span></button>
+  <button id="bDoll" aria-label="Dollhouse: see the whole place from above" hidden><span class="gb"><svg viewBox="0 0 24 24"><path d="M12 3 3.5 7.5v9L12 21l8.5-4.5v-9z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/></svg></span><span class="w">Dollhouse</span></button>
+  <button id="bPlan" aria-label="Floor plan with measurements" hidden><span class="gb"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="1"/><path d="M4 11h7v9M11 4v4M15 11h5"/></svg></span><span class="w">Plan</span></button>
+  <button id="bHelp" aria-label="Help"><span class="gb"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6M12 16.8v.2"/></svg></span><span class="w">Help</span></button>
+  <button id="bUp" title="Move rings toward the horizon" hidden><span class="gb"><svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg></span><span class="w">Rings</span></button>
+  <button id="bDown" title="Move rings down" hidden><span class="gb"><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></span><span class="w">Rings</span></button>
+</div>
+<div id="nav" role="group" aria-label="Walk the tour">
+  <button id="bPrev" class="gb" aria-label="Previous stop"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+  <button id="bGo" class="gb" aria-label="Walk forward — to the stop in front of you"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19.5V5M5.5 11.5 12 5l6.5 6.5"/></svg></button>
+  <button id="bNext" class="gb" aria-label="Next stop"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+</div>
+<div id="hint" role="status">Drag to look · tap a ring to walk there</div>
+</div>
 <div id="toast" class="pill"></div>
 <div id="measure" role="status"></div>
+<div id="noteEd" role="dialog" aria-label="Note"><textarea id="noteText" maxlength="500" placeholder="What is here? (a measurement to take, a fault, something to move...)"></textarea>
+  <img id="notePhoto" alt="" hidden>
+  <div class="row"><label class="btn">Photo<input id="noteFile" type="file" accept="image/*" hidden></label><button id="noteSave" class="primary">Save</button><button id="noteDel">Delete</button><button id="noteClose">Close</button><button id="noteExport">Export notes</button></div>
+  <small id="noteInfo"></small></div>
+<div id="pbox" role="dialog" aria-label="Photo"><button id="pboxClose">Close</button><img id="pboxImg" alt=""><div class="cap"><span id="pboxNote"></span><small id="pboxTime"></small></div></div>
 <div id="planview"><div class="bar"><b>Floor plan</b><button id="planClose">Close</button></div><div id="plansvg"></div></div>
 <div id="help"><div>
   <h2>Walking around</h2>
-  <p>Drag to look around, pinch or scroll to zoom. Move the mouse over the floor or a wall: a small circle shows where you would go. Click or tap to glide to the nearest spot, keeping the way you are looking. You can also tap a dot on the map or a photo in the strip.</p>
+  <p>Drag to look around, pinch or scroll to zoom. The rings on the floor are the places you can walk to: tap one to glide there, keeping the way you are looking. The big arrow walks to the ring in front of you, &lsaquo; and &rsaquo; step along the walk in the order it was recorded. The small map at the top shows where you stand, which way you look and the path that was walked; tap it to open it big, with every stop numbered, and tap a stop there (or a picture in the strip) to jump. <b>Play</b> walks the tour by itself, stop by stop, facing the way it goes — any touch stops it. On a phone, <b>Motion</b> turns the view as you turn the phone; a drag still turns it too.</p>
   <p><kbd>W</kbd>/<kbd>↑</kbd> walk toward where you're looking · <kbd>S</kbd>/<kbd>↓</kbd> step back · <kbd>A</kbd><kbd>D</kbd>/<kbd>←</kbd><kbd>→</kbd> turn · <kbd>N</kbd>/<kbd>P</kbd> next/previous stop</p>
   <details id="guide"><summary>How to record a walk</summary>
     <figure><img src="guide/1_stick_straight.svg" alt="The stick vertical with the camera over your head (right) against a leaning stick (wrong)" width="400" height="260">
@@ -137,11 +241,46 @@
   try { tour = await (await fetch('tour.json', { cache: 'no-cache' })).json(); }      // revalidate: a rebuilt tour must not show a cached old list
   catch (e) { $('load').textContent = 'Could not load tour.json — serve this folder over http.'; return; }
   const N = tour.nodes;
+  // photos.json (optional, beside tour.json): the day's photos pinned onto the walk's stops. A missing or unreadable file is no photos.
+  let photos = []; const ppEls = new Map(), ppPt = new Map();
+  try {
+    const r = await fetch('photos.json', { cache: 'no-cache' });
+    if (r.ok) { const j = await r.json(); if (Array.isArray(j)) photos = j.filter(x => x && typeof x === 'object' && x.id != null && N.some(n => n.id === String(x.stop))); }
+  } catch (e) { photos = []; }
+  const photoUrl = u => { u = String(u || ''); return !/^[a-z][a-z0-9+.-]*:/i.test(u) || /^https:/i.test(u) ? u : ''; };      // relative to the tour folder, or https; nothing else
   $('name').textContent = tour.title || 'Walk'; document.title = tour.title || 'Walkthrough';
-  if (tour.mapped) $('maplabel').style.display = 'none';
+  $('maplabel').textContent = tour.mapped ? 'Map' : 'Map · approximate';
+
+  // a tool key is an icon over its word: what changes is the word, never the icon
+  const keyWord = (id, w) => { const e = $(id).querySelector('.w'); if (e) e.textContent = w; };
+  // THE PLACE'S OWN CHROME (2026-10-31): Back, Share and the walk times are drawn only when they are TRUE for this page — opened on its own
+  // (never inside another app's frame, which draws its own), Back only when the page was reached from this site and has somewhere to go back to,
+  // Share only where the browser has a share sheet, the times only when tour.json lists two or more walks of the place (tour.walks: [{label, href, on}])
+  const FRAMED = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+  if (!FRAMED) {
+    let same = false; try { same = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch (e) {}
+    if (same && history.length > 1) { $('bBack').hidden = false; $('bBack').onclick = () => history.back(); }
+    if (navigator.share && /^https?:$/.test(location.protocol)) { $('bShare').hidden = false;
+      $('bShare').onclick = () => navigator.share({ title: document.title, url: location.href }).catch(() => {}); }
+    const safeHref = h => typeof h === 'string' && h && (!/^[a-z][a-z0-9+.-]*:/i.test(h) || /^https?:/i.test(h)) && !/^\s*javascript:/i.test(h);
+    const W = Array.isArray(tour.walks) ? tour.walks.filter(w => w && typeof w.label === 'string' && w.label.trim() && safeHref(w.href)).slice(0, 12) : [];
+    if (W.length >= 2) { const t = $('times'); W.forEach(w => { const a = document.createElement('a'); a.href = w.href; a.textContent = w.label.trim().slice(0, 24);
+      if (w.on) a.setAttribute('aria-current', 'true'); t.appendChild(a); }); t.hidden = false; }
+  }
+  const WHEN = typeof tour.when === 'string' ? tour.when.trim().slice(0, 40) : '';     // "Today 9:41" — optional; nothing is invented when it is absent
+  const REDUCED = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   // ---------- three ----------
-  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  let renderer;
+  // 'default', never 'high-performance': a phone's web view that asks for the fast GPU is likelier to be refused or to lose the context when the app
+  // goes to the background
+  try { renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'default' }); if (renderer.getContext().isContextLost()) throw new Error('lost at birth'); }
+  catch (e) {                      // 2026-10-30: a phone whose web view cannot make a 3D context showed a black page and said nothing
+    $('load').remove();
+    $('glfailWords').textContent = 'This screen can\u2019t draw 3D right now. Tap to try again \u2014 or close the app fully and open it again, or open the tour in your browser.';
+    $('glfailGo').onclick = () => location.reload(); $('glfail').classList.add('show');
+    return;
+  }
   renderer.localClippingEnabled = true;
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.outputEncoding = THREE.sRGBEncoding;
@@ -330,13 +469,23 @@
     dcache.set(i, p); return p;
   }
   // the photo's sphere, pushed out to the measured depth at every vertex (same uv layout as the photo)
-  function depthGeo(D, sw = 128, sh = 64) {
+  // tear: a triangle that bridges a depth edge (its corners' ranges differ by more than this share) is left out, so a shelf's edge is not
+  // smeared onto the wall behind it as the camera moves off the sphere's centre; the sphere behind shows through the gap instead
+  function depthGeo(D, sw = 192, sh = 96, tear = 0) {
     const g = new THREE.SphereGeometry(1, sw, sh); g.scale(-1, 1, 1);
-    const pos = g.attributes.position, uv = g.attributes.uv;
+    const pos = g.attributes.position, uv = g.attributes.uv, R = new Float32Array(pos.count);
     for (let k = 0; k < pos.count; k++) {
       const x = Math.min(D.w - 1, Math.floor(uv.getX(k) * D.w)), y = Math.min(D.h - 1, Math.floor((1 - uv.getY(k)) * D.h));
       const r = 0.2 * Math.pow(300, D.d[(y * D.w + x) * 4] / 255);              // 8-bit log depth, 0.2..60 m
-      pos.setXYZ(k, pos.getX(k) * r, pos.getY(k) * r, pos.getZ(k) * r);
+      R[k] = r; pos.setXYZ(k, pos.getX(k) * r, pos.getY(k) * r, pos.getZ(k) * r);
+    }
+    if (tear > 0) {
+      const idx = g.index.array, keep = [];
+      for (let t = 0; t < idx.length; t += 3) {
+        const a = R[idx[t]], b = R[idx[t + 1]], c = R[idx[t + 2]], mx = Math.max(a, b, c), mn = Math.min(a, b, c);
+        if ((mx - mn) / mn < tear) keep.push(idx[t], idx[t + 1], idx[t + 2]);
+      }
+      g.setIndex(keep);
     }
     g.computeVertexNormals();
     return g;
@@ -355,44 +504,128 @@
   const edges = [];
   let EL_OFF = 0;
   try { const s = parseFloat(localStorage.getItem('st_eloff')); if (s > -20 && s < 20) EL_OFF = s; } catch (e) {}
-  const BUILD = 'v15';
-  const ringGeo = new THREE.RingGeometry(0.28, 0.4, 40); ringGeo.rotateX(-Math.PI / 2);
-  const discGeo = new THREE.CircleGeometry(0.28, 40); discGeo.rotateX(-Math.PI / 2);
-  function label(text) {
-    const c = document.createElement('canvas'); c.width = 128; c.height = 64;
-    const g = c.getContext('2d');
-    g.fillStyle = 'rgba(20,21,22,.8)'; g.beginPath(); g.roundRect ? g.roundRect(14, 8, 100, 48, 24) : g.rect(14, 8, 100, 48); g.fill();
-    g.fillStyle = '#fff'; g.font = '600 30px system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(text, 64, 33);
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
-    s.scale.set(0.5, 0.25, 1); s.renderOrder = 11; return s;
-  }
-  // Matterport-style: each nearby stop is a small soft white dot on the floor, no labels, no tags.
-  // The floor cursor (below) is the main way to move. ?nodots hides the dots completely.
-  const dotGeo = new THREE.CircleGeometry(0.11, 32).rotateX(-Math.PI / 2);
-  const dotRim = new THREE.RingGeometry(0.11, 0.135, 32).rotateX(-Math.PI / 2);
-  const hitGeo = new THREE.CircleGeometry(0.45, 16).rotateX(-Math.PI / 2);       // bigger invisible tap target
+  const BUILD = 'v16';
+  // WHERE HE CAN WALK (2026-10-29): every reachable stop is a ring lying on the floor where it stands — the walk's own neighbours bright, the
+  // farther ones dimmer, a stop behind a wall (occ) not drawn at all. The rings keep about the same size on screen whatever their distance, the one in
+  // front of the view is lit (the big arrow walks to it), and they breathe for a moment after each arrival so the eye finds them. ?nodots hides them.
+  const dotGeo = new THREE.CircleGeometry(0.42, 40).rotateX(-Math.PI / 2);
+  const dotRim = new THREE.RingGeometry(0.42, 0.5, 40).rotateX(-Math.PI / 2);
+  const dotEdge = new THREE.RingGeometry(0.5, 0.56, 40).rotateX(-Math.PI / 2);
+  const hitGeo = new THREE.CircleGeometry(0.9, 16).rotateX(-Math.PI / 2);        // bigger invisible tap target (scaled with the ring: ~70 px on screen)
   const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+  // THE RINGS ARE TRUE SIZE ON THE FLOOR (2026-10-30): a ring is a real disc lying on the target stop's floor, so it shrinks with distance and squashes
+  // with the angle like a mark painted on the ground; it is held between RING_PX_MIN and RING_PX_MAX across on screen so a far one is still seen and one
+  // at the feet is not a wall. Its tap target is worked out on the SCREEN (ringAt): at least RING_HIT_PX across on a phone, whatever the ring's size.
+  const MAX_SHOW = 6, RING_FAR_M = 14, RING_NEAR_FAR_M = 60, RING_PX_MIN = 22, RING_PX_MAX = 96;
+  const COARSE = matchMedia('(pointer:coarse)').matches, RING_HIT_PX = COARSE ? 52 : 30;
+  let ringsSince = 0, litRing = null, ringHover = null, ringPress = null, ringAim = null;
+  // the floor under stop L.to, in this stop's frame: this stop's floor (camera height h below the eye) plus how much the ground climbs to the other stop.
+  // (The link's el was atan(h / d) on flat ground and the viewer clamped it to 60 degrees, so a stop under 1.3 m away floated up to a metre over the floor.)
+  function ringY(i, L) {
+    const n = N[i], m = N[L.to], h = n.h || 2.1, d = dOf(L);
+    if (EL_OFF) return -d * Math.tan(Math.min(85, Math.max(3, Math.atan2(h, d) / D2R + EL_OFF)) * D2R);      // the hand-tuned offset (Rings up/down) still works
+    let dz = (m.z || 0) - (n.z || 0); if (!isFinite(dz)) dz = 0;
+    dz = Math.max(-(0.6 * d + 0.3), Math.min(0.6 * d + 0.3, dz));                                       // a step or a slope, never a cliff from a bad height
+    return -h + dz;
+  }
+  const dOf = L => (typeof L.d === 'number' && isFinite(L.d)) ? L.d : 3;          // a measured 0 is "the same spot", not "unknown"
+  function freeRing(g) { for (const c of g.children) if (c.material !== hitMat) c.material.dispose(); }
   function buildHotspots(i) {
-    while (hotGroup.children.length) hotGroup.remove(hotGroup.children[0]);
-    edgeLayer.innerHTML = ''; edges.length = 0;
-    if (!location.search.includes('dots')) return;            // default: no markers, the cursor is the guide (?dots shows them)
-    const MAX_SHOW = 6;
-    const vis = N[i].links.filter(L => !L.occ);
+    while (hotGroup.children.length) { freeRing(hotGroup.children[0]); hotGroup.remove(hotGroup.children[0]); }
+    edgeLayer.innerHTML = ''; edges.length = 0; litRing = ringHover = ringPress = ringAim = null;
+    if (location.search.includes('nodots')) return;
+    // a stop behind a wall is never drawn; the walk's own next and previous stops always are (a long stride outside is still the way on)
+    const vis = N[i].links.filter(L => !L.occ && dOf(L) >= 0.3 && dOf(L) <= (L.near ? RING_NEAR_FAR_M : RING_FAR_M));      // under 0.3 m he is standing on it
     const show = new Set(vis.filter(L => L.near).concat(vis.filter(L => !L.near).sort((a, b) => a.d - b.d).slice(0, MAX_SHOW)));
-    const zt = !!occMesh;
+    // never depth-tested: the measured surface at the walker's feet stands nearer than the floor and swallowed every ring (a wall is kept out by occ instead)
+    const zt = false;
     for (const L of N[i].links) {
       if (!show.has(L)) continue;
-      const d = dirOf(L.az), R = L.d || 3, g = new THREE.Group();
-      g.position.set(d.x * R, -R * Math.tan(Math.min(60, Math.max(5, (L.el || 30) + EL_OFF)) * D2R) + 0.01, d.z * R);
-      const fade = 1 - 0.5 * Math.min(1, Math.max(0, (R - 2) / 8));
-      const dot = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .55 * fade, depthTest: zt, depthWrite: false }));
-      const rim = new THREE.Mesh(dotRim, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .9 * fade, depthTest: zt, depthWrite: false }));
+      const d = dirOf(L.az), R = dOf(L), g = new THREE.Group();
+      g.position.set(d.x * R, ringY(i, L) + 0.02, d.z * R);
+      const fade = L.near ? 1 : 0.55 - 0.25 * Math.min(1, Math.max(0, (R - 3) / 10));
+      const fill = new THREE.Mesh(dotGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .14 * fade, depthTest: zt, depthWrite: false }));
+      const rim = new THREE.Mesh(dotRim, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .92 * fade, depthTest: zt, depthWrite: false }));
+      const edge = new THREE.Mesh(dotEdge, new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .28 * fade, depthTest: zt, depthWrite: false }));
       const hit = new THREE.Mesh(hitGeo, hitMat);
-      dot.renderOrder = rim.renderOrder = 10;
-      g.add(dot, rim, hit); g.userData.link = L;
+      fill.renderOrder = rim.renderOrder = edge.renderOrder = 10;
+      g.add(fill, edge, rim, hit); g.userData = { link: L, fade, fill, rim, edge, R, D3: g.position.length() };
       hotGroup.add(g);
     }
+    // THE WAY ON, AT THE EDGE OF THE SCREEN: when the walk's next or previous stop is out of view, a yellow chevron at the screen's edge points at it
+    for (const L of N[i].links) {
+      if (!show.has(L) || !L.near) continue;
+      const b = document.createElement('button'); b.className = 'edge';
+      const ahead = L.to > i; b.innerHTML = ahead ? 'Next stop <i>\u203A</i>' : '<i>\u2039</i> Back';
+      b.setAttribute('aria-label', (ahead ? 'Next stop ' : 'Previous stop ') + N[L.to].id + ' — turn this way');
+      b.onclick = ev => { ev.stopPropagation(); go(L.to, false, L.turn); };
+      edgeLayer.appendChild(b);
+      const g = hotGroup.children.find(c => c.userData.link === L);
+      edges.push({ pos: g ? g.position.clone() : dirOf(L.az).multiplyScalar(dOf(L)), el: b, az: L.az });
+    }
+    ringsSince = performance.now();
+  }
+  // each frame: the rings' size on screen, the lit one (nearest the view's centre, within 35 degrees), and the breath after an arrival
+  const _rp = new THREE.Vector3();
+  function ringTick(now) {
+    if (!hotGroup.visible || !hotGroup.children.length) return false;
+    const H = el.clientHeight || innerHeight, tf = Math.tan(camera.fov * D2R / 2), breath = Math.max(0, 1 - (now - ringsSince) / 1800);      // the breath is short, so an idle phone goes back to drawing nothing
+    // "in front" is a ring on the screen within 35 degrees of the view's heading: one at his feet while he looks ahead is not the way on
+    let best = null, bestErr = 35;
+    for (const g of hotGroup.children) {
+      const L = g.userData.link, err = Math.abs(((L.az - lon) % 360 + 540) % 360 - 180);
+      if (err >= bestErr) continue;
+      _rp.copy(g.position).project(camera);
+      if (_rp.z > 1 || Math.abs(_rp.x) > 0.95 || Math.abs(_rp.y) > 0.95) continue;
+      bestErr = err; best = g;
+    }
+    // the ring a press or the pointer is on outranks the one in front of the view: that is the one the arrow walks to, and the one that is yellow
+    const target = ringPress || ringHover || ringAim || best;
+    let changed = target !== litRing; litRing = target;
+    for (const g of hotGroup.children) {
+      const u = g.userData;
+      let px = discPx(g.position, 0.56, H, tf, u.D3), k = 1;               // the drawn disc's width on screen at scale 1
+      if (px > RING_PX_MAX) k = RING_PX_MAX / px; else if (px < RING_PX_MIN) k = RING_PX_MIN / px;
+      const lit = g === target, state = g === ringPress ? 'press' : (g === ringHover || g === ringAim) ? 'hover' : lit ? 'lit' : '';
+      const pulse = breath > 0 ? 1 + 0.08 * breath * Math.sin((now - ringsSince) / 160) : 1;
+      k *= (state === 'press' ? 0.9 : state === 'hover' ? 1.2 : lit ? 1.12 : 1) * pulse;
+      u.k = u.k == null ? k : u.k + (k - u.k) * 0.35;                       // eased, so a hover grows the ring instead of snapping it
+      if (Math.abs(u.k - k) < 1e-3) u.k = k;
+      if (Math.abs(g.scale.x - u.k) > 1e-4) { g.scale.setScalar(u.k); changed = true; }
+      const want = lit ? 1 : u.fade;
+      if (u.state !== state || u.want !== want) {                          // the lit ring is the walk's yellow, filled; the others white; pressed, filled solid
+        u.state = state; u.want = want; u.rim.material.opacity = (state ? 1 : .92) * want;
+        u.fill.material.opacity = (state === 'press' ? .62 : state === 'hover' ? .42 : lit ? .34 : .14) * want;
+        u.edge.material.opacity = (state ? .45 : .28) * u.fade;
+        u.rim.material.color.setHex(lit ? 0xffd24a : 0xffffff); u.fill.material.color.setHex(lit ? 0xffd24a : 0xffffff); changed = true; }
+    }
+    return changed || breath > 0;
+  }
+  // how wide a flat disc of radius rad lying on the floor at p is drawn, in px: its two floor axes projected, the longer one (exact at the screen's edge too)
+  const _da = new THREE.Vector3(), _db = new THREE.Vector3();
+  function discPx(p, rad, H, tf, D3) {
+    _rp.copy(p).project(camera);
+    if (_rp.z > 1) return 2 * rad * (H / 2) / (tf * Math.max(0.5, D3));
+    const W = el.clientWidth || innerWidth;
+    _da.set(p.x + rad, p.y, p.z).project(camera); _db.set(p.x, p.y, p.z + rad).project(camera);
+    const a = Math.hypot((_da.x - _rp.x) * W / 2, (_da.y - _rp.y) * H / 2), b = Math.hypot((_db.x - _rp.x) * W / 2, (_db.y - _rp.y) * H / 2);
+    return 2 * Math.max(a, b);
+  }
+  // the ring under a screen point, judged on the screen: the nearest ring whose drawn disc, or a RING_HIT_PX target round its centre, holds the point
+  const _rs = new THREE.Vector3();
+  function ringAt(x, y) {
+    if (!hotGroup.visible || busy || gliding) return null;
+    const r = el.getBoundingClientRect(), H = r.height, tf = Math.tan(camera.fov * D2R / 2);
+    let best = null, bd = Infinity;
+    for (const g of hotGroup.children) {
+      _rs.copy(g.position).project(camera);
+      if (_rs.z > 1 || _rs.z < -1) continue;
+      const sx = r.left + (_rs.x + 1) / 2 * r.width, sy = r.top + (1 - _rs.y) / 2 * r.height;
+      const rad = Math.max(RING_HIT_PX / 2, discPx(g.position, 0.56 * g.scale.x, H, tf, g.userData.D3) / 2);
+      const dd = Math.hypot(x - sx, y - sy);
+      if (dd <= rad && dd < bd) { bd = dd; best = g; }
+    }
+    return best;
   }
 
   // ---------- cursor (Matterport-style): a small circle lying on whatever surface is under the pointer ----------
@@ -413,6 +646,11 @@
     const x = Math.min(curD.w - 1, Math.floor(uv.x * curD.w)), y = Math.min(curD.h - 1, Math.floor((1 - uv.y) * curD.h));
     return curD.d[(y * curD.w + x) * 4 + 1] >= 128;
   }
+  function depthByte0(uv) {
+    if (!curD || !uv) return true;
+    const x = Math.min(curD.w - 1, Math.floor(uv.x * curD.w)), y = Math.min(curD.h - 1, Math.floor((1 - uv.y) * curD.h));
+    return curD.d[(y * curD.w + x) * 4] === 0;
+  }
   // -> { p: point, n: surface normal, floor: bool, dist } for the surface under a screen point
   function surfaceHit(clientX, clientY) {
     if (!occMesh) return null;
@@ -421,24 +659,29 @@
     const hit = fray.intersectObject(occMesh, false)[0];
     if (!hit) return null;
     const dir = fray.ray.direction, h = N[cur].h || 2.1;
+    const nodepth = depthByte0(hit.uv);                              // no measured depth under this pixel (sky, the hole at the feet)
     if (isFloorUV(hit.uv) && dir.y < -0.03) {                    // floor: sit exactly on the floor plane, flat
       const t = -h / dir.y;
-      return { p: new THREE.Vector3(dir.x * t, -h, dir.z * t), n: new THREE.Vector3(0, 1, 0), floor: true, dist: t };
+      return { p: new THREE.Vector3(dir.x * t, -h, dir.z * t), n: new THREE.Vector3(0, 1, 0), floor: true, dist: t, nodepth, up: dir.y };
     }
     _n.copy(hit.face.normal).transformDirection(occMesh.matrixWorld);
     if (_n.dot(dir) > 0) _n.negate();
-    return { p: hit.point.clone(), n: _n.clone(), floor: false, dist: hit.distance };
+    return { p: hit.point.clone(), n: _n.clone(), floor: false, dist: hit.distance, nodepth, up: dir.y };
   }
+  // nowhere to stand: the sky or a pixel with no depth, anything looked at more than ~17 degrees above the horizon, or a ceiling (a surface facing down) -- no cursor there and a click goes nowhere
+  const SKY_M = 45;
+  function nowhere(s) { return !s || s.nodepth || s.dist > SKY_M || s.up > 0.3 || (!s.floor && s.n.y < -0.5); }
   function floorHit(clientX, clientY) {                          // where a click on this point should walk to
     const s = surfaceHit(clientX, clientY);
-    if (!s) return null;
+    if (nowhere(s)) return null;
     const h = N[cur].h || 2.1;
     if (s.floor) return s.p;
     const back = s.p.clone().addScaledVector(s.n, 0.6);            // a wall or shelf: aim for the floor just in front of it
     return new THREE.Vector3(back.x, -h, back.z);
   }
 
-  // the stop whose floor spot is nearest to a point on the floor
+  // the stop whose floor spot is nearest to a point on the floor (map metres; a spot farther than this from every stop is not a place anyone stood)
+  const ACCEPT_M = 8;
   function stopNear(p) {
     // floor point -> map coordinates (bearing = heading + azimuth, x = d sin b, y = d cos b), then the closest stop
     const az = Math.atan2(p.x, -p.z) / D2R, d = Math.hypot(p.x, p.z), n = N[cur];
@@ -446,14 +689,15 @@
     const b = (n.H + az) * D2R, mx = n.x + d * Math.sin(b), my = n.y + d * Math.cos(b);
     let best = -1, bd = Infinity;
     N.forEach((m, j) => { if (j === cur || m.x == null) return; const dd = Math.hypot(m.x - mx, m.y - my); if (dd < bd) { bd = dd; best = j; } });
-    if (best < 0) return null;
+    if (best < 0 || bd > ACCEPT_M) return null;                    // nobody stood within reach of that spot
     const L = n.links.find(l => l.to === best);
     return { to: best, dist: bd, turn: L ? L.turn : n.H - N[best].H };     // keep facing the same way in the real room
   }
 
   // ---------- view state ----------
-  // the picture spans about 100 degrees across the screen (it used to be 75 degrees from top to bottom); pinch or scroll zooms between 45 and 105
-  const HFOV0 = 100, HMIN = 45, HMAX = 105, VMAX = 130;
+  // the picture opens as WIDE as the view goes — 110 degrees across the screen (2026-10-30, the owner: "set for farthest away when touring so I can see more
+  // of the image at once"; it was 100, and 75 from top to bottom before that); pinch or scroll zooms in to 45 and back out to 110
+  const HFOV0 = 110, HMIN = 45, HMAX = 110, VMAX = 130;
   let cur = 0, lon = 0, lat = -12, hfov = HFOV0, busy = false;
   const vfov = () => Math.min(VMAX, 2 * Math.atan(Math.tan(hfov * D2R / 2) / camera.aspect) / D2R);   // vertical angle for the horizontal one, never absurd on a tall phone
   function look() {
@@ -471,14 +715,15 @@
     if (a.x == null || b.x == null) return null;
     const dx = b.x - a.x, dy = b.y - a.y, dist = Math.hypot(dx, dy);
     const az = Math.atan2(dx, dy) / D2R - a.H, d = dirOf(az);
-    return { P: new THREE.Vector3(d.x * dist, 0, d.z * dist), dist };
+    const dz = ((b.h || 2.1) + (b.z || 0)) - ((a.h || 2.1) + (a.z || 0));           // up a staircase, down to a beach: the eye climbs with the ground
+    return { P: new THREE.Vector3(d.x * dist, dz, d.z * dist), dist };
   }
   async function glide(from, j, t, Dfrom, D, turn) {
     const off = targetOffset(from, j);
-    if (!off || !Dfrom || !D || off.dist > 18 || location.search.includes('noglide')) return false;
-    const mA = new THREE.MeshBasicMaterial({ map: front.material.map, side: THREE.DoubleSide });
-    const mB = new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide, transparent: true, opacity: 0 });
-    const A = new THREE.Mesh(depthGeo(Dfrom, 96, 48), mA), B = new THREE.Mesh(depthGeo(D, 96, 48), mB);
+    if (!off || !Dfrom || !D || off.dist > 18 || REDUCED || location.search.includes('noglide')) return false;
+    const mA = new THREE.MeshBasicMaterial({ map: front.material.map, side: THREE.DoubleSide, transparent: true, opacity: 1, depthWrite: false });
+    const mB = new THREE.MeshBasicMaterial({ map: t, side: THREE.DoubleSide });
+    const A = new THREE.Mesh(depthGeo(Dfrom, 160, 80, 0.22), mA), B = new THREE.Mesh(depthGeo(D, 160, 80), mB);
     A.quaternion.copy(front.quaternion);
     B.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(_Y, (turn || 0) * D2R).multiply(levelQ(N[j])));
     B.position.copy(off.P);
@@ -490,7 +735,7 @@
         const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);   // ease out: quick start, soft landing
         camera.position.copy(off.P).multiplyScalar(e);
         camera.lookAt(camera.position.clone().add(look0));
-        mB.opacity = Math.min(1, Math.max(0, (e - 0.15) / 0.55));
+        mA.opacity = 1 - Math.min(1, Math.max(0, (e - 0.1) / 0.6));           // the photo you leave fades out over the one you arrive in
         if (k < 1) requestAnimationFrame(step); else res();
       })(performance.now());
     });
@@ -560,40 +805,120 @@
   const doll = { on: false, loaded: null, scene: new THREE.Scene(), cam: new THREE.PerspectiveCamera(50, 1, 0.1, 400), az: 0.5, pol: 0.9, dist: 30, target: new THREE.Vector3(),
     dirty: true, markers: new THREE.Group(), measure: new THREE.Group(), roof: new THREE.Plane(new THREE.Vector3(0, -1, 0), 3.2), mesh: null, info: null, ptr: new Map(), tw: null, radius: 12, ray: new THREE.Raycaster() };
   doll.scene.background = new THREE.Color(0x0f1012); doll.scene.add(doll.markers); doll.scene.add(doll.measure);
+  const dollPhotos = new THREE.Group(); doll.scene.add(dollPhotos);
+  const DOLL_MIN = 0.8, SNAP_M = 1.6;      // closest the orbit camera may come; within SNAP_M of a stop's camera position the dollhouse hands over to that stop
   // ---------- input ----------
   const el = renderer.domElement;
-  let drag = null, pinch = null;
-  const pts = new Map();
+  let drag = null, pinch = null, fling = null;                              // fling: the look keeps turning a moment after a flicked drag, slowing down
+  const pts = new Map(); let pressT = 0;
+  // state of the pinned notes (declared here because the render loop and the input handlers look at it before the notes code below has run)
+  const NOTE_KEY = 'st_notes_' + (tour.title || tour.name || 'tour'); let notes = [], noteMode = false, noteEdit = null, noteOcc = '', noteFresh = false, notesServer = null; const noteVis = new Map(), pinEls = new Map();
   el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); pts.set(e.pointerId, e);
+    stopPlay();
     if (doll.on) return doll.down(e);
-    if (pts.size === 1) drag = { x: e.clientX, y: e.clientY, lon, lat, moved: 0 };
+    fling = null; hideHint();
+    ringPress = pts.size === 1 && !(() => { try { return meas.on; } catch (x) { return false; } })() && !noteMode ? ringAt(e.clientX, e.clientY) : null;
+    if (pts.size === 1) { drag = { x: e.clientX, y: e.clientY, lon, lat, moved: 0, vx: 0, vy: 0, t: performance.now(), px: e.clientX, py: e.clientY }; const d0 = drag; clearTimeout(pressT); pressT = setTimeout(() => { if (drag === d0 && d0.moved < 6 && pts.size === 1 && !busy && !doll.on && !ringPress) { d0.moved = 99; notePlace(d0.x, d0.y); } }, 650); }
     if (pts.size === 2) { const [a, b] = [...pts.values()]; pinch = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), fov: hfov }; drag = null; } });
   el.addEventListener('pointermove', e => { if (!pts.has(e.pointerId)) return; pts.set(e.pointerId, e);
     if (doll.on) return doll.move(e);
     if (pinch && pts.size === 2) { const [a, b] = [...pts.values()]; hfov = Math.max(HMIN, Math.min(HMAX, pinch.fov * pinch.d / Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY))); look(); return; }
     if (!drag) return;
     const k = vfov() / el.clientHeight;
-    lon = drag.lon - (e.clientX - drag.x) * k; lat = drag.lat + (e.clientY - drag.y) * k;
-    drag.moved = Math.max(drag.moved, Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y)); look(); });
+    lon = drag.lon - (e.clientX - drag.x) * k; lat = drag.lat + (e.clientY - drag.y) * k;          // the finger turns both ways, Motion on or off (2026-10-30)
+    { const now = performance.now(), dt = Math.max(1, now - drag.t) / 1000, a = Math.min(1, dt * 18);          // the finger's speed, smoothed, in degrees a second
+      drag.vx += (-(e.clientX - drag.px) * k / dt - drag.vx) * a; drag.vy += ((e.clientY - drag.py) * k / dt - drag.vy) * a; drag.px = e.clientX; drag.py = e.clientY; drag.t = now; }
+    drag.moved = Math.max(drag.moved, Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y)); if (drag.moved >= 6) ringPress = null; look(); });
   const up = e => { if (doll.on) { pts.delete(e.pointerId); return doll.up(e); }
     pts.delete(e.pointerId); if (pts.size < 2) pinch = null;
-    if (drag && drag.moved < 6 && e.type === 'pointerup') pick(e); if (!pts.size) drag = null; };
+    const pressed = ringPress; ringPress = null;
+    if (drag && drag.moved < 6 && e.type === 'pointerup') pick(e, pressed);
+    else if (drag && e.type === 'pointerup' && performance.now() - drag.t < 80 && Math.hypot(drag.vx, drag.vy) > 40) fling = { vx: drag.vx, vy: drag.vy };
+    if (!pts.size) drag = null; };
   el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  // ---------- MOTION: the view turns with the phone (2026-10-29 — "a 360 tour on a phone should turn with the phone, like Matterport / Street View") ----------
+  // Off until pressed. The phone's orientation (deviceorientation; iOS asks inside the press, every open) becomes a look direction by the standard
+  // three.js DeviceOrientationControls math (Euler YXZ from beta/alpha/-gamma, the -90 degree X correction, the screen's own turn about Z). The PITCH is
+  // the phone's; the YAW follows the phone's TURNS from wherever the view already looks (a delta, so pressing it never jumps the view, and a glide's turn,
+  // a drag or a key still add to it). No reading in 2.5 s: the key says so and goes back off. tour:gyro keeps the choice only as a preference.
+  const gyro = { on: false, src: null, lon: null, lat: null, prev: null, n: 0, waitT: 0, wordT: 0 };
+  const GY_E = new THREE.Euler(), GY_X = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)), GY_Z = new THREE.Vector3(0, 0, 1), GY_S = new THREE.Quaternion(),
+    GY_Q = new THREE.Quaternion(), GY_F = new THREE.Vector3(), GY_U = new THREE.Vector3();
+  const GYRO_PREF = 'tour:gyro', gyroAsks = () => !!(window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function');
+  function gyroRead(e) {
+    if (!gyro.on || e.alpha == null || e.beta == null || e.gamma == null) return;
+    if (gyro.src && gyro.src !== e.type) return;                       // one source: a relative and an absolute alpha differ by the compass
+    gyro.src = e.type;
+    const so = ((screen.orientation && typeof screen.orientation.angle === 'number') ? screen.orientation.angle : (+window.orientation || 0)) * D2R;
+    GY_E.set(e.beta * D2R, e.alpha * D2R, -e.gamma * D2R, 'YXZ');
+    GY_Q.setFromEuler(GY_E).multiply(GY_X).multiply(GY_S.setFromAxisAngle(GY_Z, -so));
+    GY_F.set(0, 0, -1).applyQuaternion(GY_Q); GY_U.set(0, 1, 0).applyQuaternion(GY_Q);
+    const sl = Math.max(-1, Math.min(1, GY_F.y)), cl = Math.sqrt(1 - sl * sl);
+    // the heading: the screen's facing, steadied by its top edge as the phone points up or down (exact with no roll: h = cos(lat) f - sin(lat) up)
+    const hx = cl * GY_F.x - sl * GY_U.x, hz = cl * GY_F.z - sl * GY_U.z;
+    gyro.lon = Math.atan2(hx, -hz) / D2R; gyro.lat = Math.asin(sl) / D2R;
+    if (++gyro.n === 1) { clearTimeout(gyro.waitT); gyroKey(); }
+  }
+  addEventListener('deviceorientation', gyroRead); addEventListener('deviceorientationabsolute', gyroRead);
+  function gyroTick() {                                                 // in the render loop, before look()
+    if (!gyro.on || gyro.lon == null) return;
+    if (doll.on) { gyro.prev = null; return; }                         // the dollhouse is its own camera: re-anchor on the way back
+    if (busy) return;                                                  // a glide holds the view; the turns made meanwhile land when it arrives
+    // LIKE A HEAD, NEVER A ROLL (2026-10-30 — the owner: "people can only look left right leveled and up down… it weirdly rotates and rolls when using my
+    // finger"): the phone's turns are added to the look in BOTH axes as deltas, so a finger's drag and the phone's tilt add up instead of fighting, and the
+    // horizon stays level — the look is only ever a heading and a pitch (look() builds it from lon and lat with the world's up)
+    if (gyro.prev != null) {
+      const d = ((gyro.lon - gyro.prev[0]) % 360 + 540) % 360 - 180, dp = gyro.lat - gyro.prev[1];
+      lon += d; lat += dp; if (drag) { drag.lon += d; drag.lat += dp; }
+    } else { lat = gyro.lat; if (drag) drag.lat = lat; }                   // the press itself levels the pitch to the phone, once; the yaw stays where it looked
+    gyro.prev = [gyro.lon, gyro.lat];
+  }
+  function gyroKey(word) { const b = $('bGyro'); b.classList.toggle('on', gyro.on); b.setAttribute('aria-pressed', gyro.on ? 'true' : 'false'); keyWord('bGyro', word || 'Motion'); }
+  function gyroPref(on) { try { localStorage.setItem(GYRO_PREF, on ? '1' : '0'); } catch (e) { /* an opaque origin has no storage */ } }
+  function gyroStop(word) {
+    gyro.on = false; gyro.src = gyro.lon = gyro.lat = gyro.prev = null; gyro.n = 0; clearTimeout(gyro.waitT); clearTimeout(gyro.wordT); gyroKey(word);
+    if (word) gyro.wordT = setTimeout(() => { if (!gyro.on) gyroKey(); }, 2500);
+  }
+  function gyroStart() {
+    gyro.on = true; gyro.src = gyro.lon = gyro.lat = gyro.prev = null; gyro.n = 0; clearTimeout(gyro.wordT); gyroKey();
+    clearTimeout(gyro.waitT);
+    gyro.waitT = setTimeout(() => { if (gyro.on && !gyro.n) { gyroStop('No sensor'); toast('No motion from this device — drag to look around', 2400); } }, 2500);
+  }
+  $('bGyro').onclick = async () => {
+    if (gyro.on) { gyroStop(); gyroPref(false); return; }
+    if (gyroAsks()) {                                                  // iOS: the ask must come from this press, and it is asked on every open
+      let ans = 'denied'; try { ans = await DeviceOrientationEvent.requestPermission(); } catch (e) { ans = 'denied'; }
+      if (ans !== 'granted') { gyroStop('Not allowed'); toast('Motion was not allowed — drag to look around', 2400); return; }
+    }
+    gyroStart(); gyroPref(true);
+  };
+  if (window.DeviceOrientationEvent && (matchMedia('(pointer:coarse)').matches || location.search.includes('gyro'))) {
+    $('bGyro').hidden = false;
+    // MOTION IS A PRESS, EVERY OPEN (2026-10-30): a phone that chose it last time opened with it on, and a finger drag then felt as if the picture rolled
+    // under it (the phone's tilt owned the pitch) — the owner: "it weirdly rotates and rolls when using my finger". Off until pressed, on every open.
+  }
   let hoverPos = null, rayKey = ''; window.__rays = 0;
-  el.addEventListener('pointermove', e => { if (e.pointerType === 'mouse') hoverPos = [e.clientX, e.clientY]; });
-  el.addEventListener('pointerleave', () => { hoverPos = null; cur_t.on = false; });
+  el.addEventListener('pointermove', e => { if (e.pointerType !== 'mouse') return; hoverPos = [e.clientX, e.clientY];
+    const g = (drag && drag.moved > 3) || doll.on ? null : ringAt(e.clientX, e.clientY);
+    if (g !== ringHover) { ringHover = g; el.style.cursor = g ? 'pointer' : ''; } });
+  el.addEventListener('pointerleave', () => { hoverPos = null; cur_t.on = false; ringHover = ringAim = null; el.style.cursor = ''; });
   function cursorTick() {
     if (hoverPos && !busy && !(drag && drag.moved > 3)) {
       // the raycast against the depth mesh is only redone when the pointer or the view moved (it used to run every frame)
-      const key = hoverPos[0] + ',' + hoverPos[1] + ',' + lon.toFixed(2) + ',' + lat.toFixed(2) + ',' + hfov + ',' + cur + ',' + (occMesh && occMesh.id);
+      const key = hoverPos[0] + ',' + hoverPos[1] + ',' + lon.toFixed(2) + ',' + lat.toFixed(2) + ',' + hfov + ',' + cur + ',' + (occMesh && occMesh.id) + ',' + (ringHover ? ringHover.id : 0);
       if (key !== rayKey) {
         rayKey = key; window.__rays++;
-        const s = surfaceHit(hoverPos[0], hoverPos[1]);
-        if (s) {
+        const s = ringHover ? null : surfaceHit(hoverPos[0], hoverPos[1]);       // over a ring the ring itself is the cursor
+        ringAim = null;
+        if (s && s.floor && !nowhere(s)) { const L = stopNear(s.p); if (L) ringAim = hotGroup.children.find(c => c.userData.link.to === L.to) || null; }
+        if (!nowhere(s) && s.dist >= 0.7) {                      // a surface under 0.7 m or with no depth (sky, the feet) draws no cursor
           cur_t.on = true;
           cur_t.p.copy(s.p).addScaledVector(s.n, 0.015);
           cur_t.q.setFromUnitVectors(_Y, s.n);
           cur_t.s = Math.min(0.42, Math.max(0.07, s.dist * 0.055)) * (s.floor ? 1 : 0.8);   // about the same size on screen
+          { const H = el.getBoundingClientRect().height, pxPerM = (H / 2) / (Math.tan(camera.fov * D2R / 2) * s.dist);
+            const px = 2 * 1.12 * cur_t.s * pxPerM;                                        // the drawn disc's width on screen, whatever the depth
+            if (px > 44) cur_t.s *= 44 / px; else if (px < 12) cur_t.s *= 12 / px; }
           cur_t.a = s.floor ? 1 : 0.6;
         } else cur_t.on = false;
       }
@@ -608,24 +933,51 @@
     requestAnimationFrame(cursorTick);
   }
   requestAnimationFrame(cursorTick);
-  el.addEventListener('wheel', e => { e.preventDefault(); if (doll.on) return doll.wheel(e.deltaY); hfov = Math.max(HMIN, Math.min(HMAX, hfov + e.deltaY * 0.05)); look(); }, { passive: false });
+  el.addEventListener('wheel', e => { e.preventDefault(); if (doll.on) return doll.wheel(e.deltaY, e.clientX, e.clientY); hfov = Math.max(HMIN, Math.min(HMAX, hfov + e.deltaY * 0.05)); look(); }, { passive: false });
 
   const ray = new THREE.Raycaster();
-  function pick(e) {
+  function pick(e, pressed) {
     const r = el.getBoundingClientRect();
     ray.setFromCamera({ x: (e.clientX - r.left) / r.width * 2 - 1, y: -(e.clientY - r.top) / r.height * 2 + 1 }, camera);
     if (meas.on) return measureTap(e.clientX, e.clientY);
-    const hit = ray.intersectObjects(hotGroup.children, true)[0];
-    if (hit) { let o = hit.object; while (o.parent && !o.userData.link) o = o.parent; if (o.userData.link) { go(o.userData.link.to, false, o.userData.link.turn); return; } }
+    if (noteMode) return notePlace(e.clientX, e.clientY);
+    const g = (pressed && hotGroup.children.includes(pressed)) ? pressed : ringAt(e.clientX, e.clientY);
+    if (g) { hideHint(); ringHover = null; go(g.userData.link.to, false, g.userData.link.turn); return; }
     const p = floorHit(e.clientX, e.clientY);                // tapped the floor itself: go to the stop nearest that spot
-    if (p) { const L = stopNear(p); if (L) { cursor.visible = false; go(L.to, false, L.turn); } else toast('No stop near there'); }
+    const L = p && stopNear(p);
+    if (L) { cursor.visible = false; go(L.to, false, L.turn); } else toast('No stop there — nobody stood there on this walk', 1600);
   }
 
-  function hop(j) { const L = j >= 0 && N[cur].links.find(l => l.to === j); if (L) go(j, false, L.turn); else go(j); }
+  function hop(j) { if (!play.step) stopPlay(); const L = j >= 0 && N[cur].links.find(l => l.to === j); if (L) go(j, false, L.turn); else go(j); }
+  // PLAY (2026-10-30 — a tour that walks itself, for a phone handed round or a shared link): every PLAY_MS the walk steps to its next stop, first
+  // turning the view toward it (the link's bearing, eased), so it faces the way it goes; the last stop ends it; any touch, key, step or map ends it.
+  const PLAY_MS = 2600, play = { on: false, step: false, t: 0 };
+  function turnTo(az, ms) {
+    return new Promise(res => { const from = lon, d = ((az - lon) % 360 + 540) % 360 - 180; if (Math.abs(d) < 8 || !ms) { lon += d; look(); return res(); }
+      const t0 = performance.now(); (function f(now) { const k = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - k, 3); lon = from + d * e; look(); if (k < 1 && play.on) requestAnimationFrame(f); else res(); })(t0); });
+  }
+  async function playLoop() {
+    while (play.on) {
+      if (cur + 1 >= N.length) { stopPlay(); toast('End of the walk'); return; }
+      if (busy) { await new Promise(r => setTimeout(r, 120)); continue; }
+      const j = cur + 1, L = N[cur].links.find(l => l.to === j);
+      play.step = true;
+      try { if (L) await turnTo(L.az, Math.min(700, 8 * Math.abs(((L.az - lon) % 360 + 540) % 360 - 180))); if (!play.on) return; hop(j); }
+      finally { play.step = false; }
+      const t0 = performance.now();
+      while (play.on && (busy || performance.now() - t0 < PLAY_MS)) await new Promise(r => setTimeout(r, 100));
+    }
+  }
+  function startPlay() { if (play.on || doll.on) return; if (cur + 1 >= N.length) { toast('This is the last stop'); return; } play.on = true; $('bPlay').setAttribute('aria-pressed', 'true'); keyWord('bPlay', 'Stop'); hideHint(); playLoop(); }
+  function stopPlay() { if (!play.on) return; play.on = false; $('bPlay').setAttribute('aria-pressed', 'false'); keyWord('bPlay', 'Play'); }
+  $('bPlay').onclick = () => play.on ? stopPlay() : startPlay();
   const keys = {};
   addEventListener('keydown', e => {
     if (e.repeat && !/Arrow(Left|Right)|^[ad]$/i.test(e.key)) return;
     const k = e.key.toLowerCase();
+    if (big.on) { if (k === 'escape') big.close(); return; }
+    if (k === 'escape') { stopPlay(); return; }
+    if (k !== 'h' && k !== '?' && k !== ' ') stopPlay();
     if (doll.on) { if (k === 'escape') doll.exit(); return; }
     if (k === 'w' || k === 'arrowup') walk(1);
     else if (k === 's' || k === 'arrowdown') walk(-1);
@@ -638,6 +990,20 @@
   addEventListener('keyup', e => { const k = e.key.toLowerCase();
     if (k === 'a' || k === 'arrowleft') keys.l = 0; if (k === 'd' || k === 'arrowright') keys.r = 0; });
 
+  // THE THUMB CLUSTER (2026-10-29): ‹ › step the walk in the order it was recorded; the big arrow walks to the ring in front of the view (or, looking
+  // away from every ring, to the walk's next stop) and TURNS on the screen to point where the walk goes on, so the way ahead is never a guess
+  $('bPrev').onclick = () => hop(cur - 1); $('bNext').onclick = () => hop(cur + 1);
+  $('bGo').onclick = () => { hideHint(); if (litRing) { const L = litRing.userData.link; go(L.to, false, L.turn); } else if (cur + 1 < N.length) hop(cur + 1); else walk(1); };
+  let navRot = 0;
+  function navTick() {
+    const L = litRing ? litRing.userData.link : (N[cur].links.find(l => l.near && l.to === cur + 1) || N[cur].links.find(l => l.near) || null);
+    const rot = L ? ((L.az - lon) % 360 + 540) % 360 - 180 : 0;
+    if (Math.abs(rot - navRot) > 2) { navRot = rot; $('bGo').firstElementChild.style.transform = 'rotate(' + rot.toFixed(0) + 'deg)'; }
+  }
+  // the first-open hint: a short line over the cluster, gone at the first touch or after a few seconds (a sandboxed frame has no storage, so it may show again)
+  let hintT = 0;
+  function hideHint() { const h = $('hint'); if (h.classList.contains('show')) { h.classList.remove('show'); clearTimeout(hintT); try { localStorage.setItem('tour:hint', '1'); } catch (e) {} } }
+  function showHint() { let seen = false; try { seen = !!localStorage.getItem('tour:hint'); } catch (e) {} if (seen) return; $('hint').classList.add('show'); hintT = setTimeout(hideHint, 6000); }
   const nudge = d => { EL_OFF = Math.round((EL_OFF + d) * 10) / 10;
     try { localStorage.setItem('st_eloff', EL_OFF); } catch (e) {} buildHotspots(cur); toast('Rings ' + (EL_OFF >= 0 ? '+' : '') + EL_OFF + '°'); };
   $('bUp').onclick = () => nudge(-2); $('bDown').onclick = () => nudge(2);
@@ -646,44 +1012,112 @@
   
   // ---------- map ----------
   const map = $('map'), mg = map.getContext('2d');
-  let box;
-  function mapGeom() {
-    const r = devicePixelRatio || 1; map.width = map.clientWidth * r; map.height = map.clientHeight * r;
-    const xs = N.map(n => n.x), ys = N.map(n => n.y);
+  let box, mapSig = '';
+  // the map lies the way the plan does: its horizontal is the place's axis (tour.axis_deg, degrees from east), not east — one orientation for the
+  // minimap, the plan and the dollhouse's first look
+  const AX = (typeof tour.axis_deg === 'number') ? tour.axis_deg * D2R : 0, AXC = Math.cos(AX), AXS = Math.sin(AX);
+  const uvOf = n => [n.x * AXC + n.y * AXS, -n.x * AXS + n.y * AXC];
+  // THE PATH HE WALKED (2026-10-30): tour.path is the walk's own motion track laid on the map by build_tour.py, in map metres — drawn as a
+  // solid line under the stops on the small map and the big one. A tour built before it (no path) draws the stop chain dashed, as before.
+  const PATH = Array.isArray(tour.path) ? tour.path.filter(p => Array.isArray(p) && isFinite(p[0]) && isFinite(p[1])).map(p => ({ x: p[0], y: p[1] })) : [];
+  function geomOf(cv, padPx, withPath) {
+    // the backing store is whole device pixels, so the lines are crisp on a 2.6x phone screen (a fractional size is blurred by the browser's scaling)
+    const r = devicePixelRatio || 1, W = Math.max(1, Math.round(cv.clientWidth * r)), Hh = Math.max(1, Math.round(cv.clientHeight * r));
+    if (cv.width !== W) cv.width = W; if (cv.height !== Hh) cv.height = Hh;
+    const UV = N.concat(withPath ? PATH : []).map(uvOf), xs = UV.map(p => p[0]), ys = UV.map(p => p[1]);
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const pad = 14 * r, s = Math.min((map.width - 2 * pad) / (x1 - x0 || 1), (map.height - 2 * pad) / (y1 - y0 || 1));
-    const ox = (map.width - (x1 - x0) * s) / 2, oy = (map.height - (y1 - y0) * s) / 2;
-    box = { r, P: n => [ox + (n.x - x0) * s, map.height - oy - (n.y - y0) * s] };
+    const pad = padPx * r, s = Math.min((cv.width - 2 * pad) / (x1 - x0 || 1), (cv.height - 2 * pad) / (y1 - y0 || 1));
+    const ox = (cv.width - (x1 - x0) * s) / 2, oy = (cv.height - (y1 - y0) * s) / 2;
+    return { r, s, P: n => { const [u, v] = uvOf(n); return [ox + (u - x0) * s, cv.height - oy - (v - y0) * s]; } };
   }
-  function drawMap() {
-    const { r, P } = box; mg.clearRect(0, 0, map.width, map.height);
-    mg.strokeStyle = 'rgba(255,255,255,.35)'; mg.lineWidth = 1.5 * r; mg.setLineDash([4 * r, 4 * r]);
-    mg.beginPath(); N.forEach((n, i) => { const [x, y] = P(n); i ? mg.lineTo(x, y) : mg.moveTo(x, y); }); mg.stroke(); mg.setLineDash([]);
+  function mapGeom() { box = geomOf(map, Math.max(14, map.clientWidth * 0.17), true); if (big.on) big.box = geomOf(bigmap, big.pad(), true); mapSig = ''; }
+  // one drawing for both maps: `k` scales the marks (1 on the small map); `labels` numbers the stops (the big map)
+  function drawMapOn(g, cv, geo, k, labels) {
+    const { r, P } = geo; g.clearRect(0, 0, cv.width, cv.height);
+    g.lineJoin = 'round'; g.lineCap = 'round';
+    const line = (pts, w) => { g.lineWidth = w; g.beginPath(); pts.forEach((p, i) => { const [x, y] = P(p); i ? g.lineTo(x, y) : g.moveTo(x, y); }); g.stroke(); };
+    if (PATH.length > 1) {                                                                 // the walked path: a dark casing under a light line, so it reads over the dots and the cone
+      g.strokeStyle = 'rgba(0,0,0,.45)'; line(PATH, 4 * k * r);
+      g.strokeStyle = 'rgba(255,255,255,.62)'; line(PATH, 2 * k * r);
+    } else {                                                                               // no track: the stops in order, dashed
+      g.strokeStyle = 'rgba(255,255,255,.35)'; g.setLineDash([4 * r, 4 * r]); line(N, 1.5 * k * r); g.setLineDash([]);
+    }
     const [cx, cy] = P(N[cur]);
-    mg.fillStyle = 'rgba(255,210,74,.28)'; mg.beginPath(); mg.moveTo(cx, cy);
-    mg.arc(cx, cy, 26 * r, (lon + N[cur].H - 90 - 35) * D2R, (lon + N[cur].H - 90 + 35) * D2R); mg.closePath(); mg.fill();
-    N.forEach((n, i) => { const [x, y] = P(n); mg.fillStyle = i === cur ? '#ffd24a' : '#fff';
-      mg.beginPath(); mg.arc(x, y, (i === cur ? 5 : 3) * r, 0, 7); mg.fill(); });
+    // the view cone: as wide as the view, its heading the view's; it fades out toward its edge like a torch beam (Street View's pegman cone)
+    const half = Math.min(60, hfov / 2) * D2R, head = (lon + N[cur].H - 90) * D2R + AX, R = 34 * k * r;
+    const grad = g.createRadialGradient(cx, cy, 0, cx, cy, R);
+    grad.addColorStop(0, 'rgba(76,141,246,.62)'); grad.addColorStop(1, 'rgba(76,141,246,0)');
+    g.fillStyle = grad; g.beginPath(); g.moveTo(cx, cy); g.arc(cx, cy, R, head - half, head + half); g.closePath(); g.fill();
+    const reach = new Set(N[cur].links.filter(L => !L.occ && L.near).map(L => L.to));
+    N.forEach((n, i) => { if (i === cur) return; const [x, y] = P(n), on = reach.has(i), rr = (on ? 3.6 : 2.4) * k * r;
+      g.fillStyle = 'rgba(0,0,0,.5)'; g.beginPath(); g.arc(x, y, rr + 1.2 * r, 0, 7); g.fill();               // a dark edge: a dot reads on the path and on the cone
+      g.fillStyle = on || i < cur ? '#fff' : 'rgba(205,205,205,.6)'; g.beginPath(); g.arc(x, y, rr, 0, 7); g.fill(); });
+    if (photos.length) { g.fillStyle = '#1a73e8'; photoPts().forEach(p => { const [x, y] = P({ x: p.x, y: p.y }); g.beginPath(); g.arc(x, y, 2 * k * r, 0, 7); g.fill(); }); }
+    // you are here, last, over everything: a yellow dot in a white ring on a dark edge
+    g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.arc(cx, cy, 9.5 * k * r, 0, 7); g.fill();
+    g.strokeStyle = '#fff'; g.lineWidth = 2 * k * r; g.beginPath(); g.arc(cx, cy, 7.5 * k * r, 0, 7); g.stroke();
+    g.fillStyle = '#0b57d0'; g.beginPath(); g.arc(cx, cy, 5 * k * r, 0, 7); g.fill();
+    if (labels) {
+      // every stop's number beside its dot, in the first of four places (right, left, above, below) that covers no other number and no dot;
+      // where none is free the number is left off — never the one he stands at or one he can walk to, which take the right side regardless
+      g.font = `600 ${12 * r}px system-ui, sans-serif`; g.textBaseline = 'middle'; g.textAlign = 'left';
+      const pts = N.map(n => P(n)), boxes = [], dotR = 5 * k * r, pad = 2 * r, th = 14 * r;
+      const hitsDot = (bx, i) => pts.some(([x, y], j) => j !== i && x + dotR > bx[0] && x - dotR < bx[2] && y + dotR > bx[1] && y - dotR < bx[3]);
+      const hitsBox = bx => boxes.some(o => bx[0] < o[2] && bx[2] > o[0] && bx[1] < o[3] && bx[3] > o[1]);
+      big.labels = boxes;
+      const order = N.map((_, i) => i).sort((a, b) => ((b === cur) - (a === cur)) || (reach.has(b) - reach.has(a)) || a - b);
+      for (const i of order) {
+        const [x, y] = pts[i], w = String(+N[i].id || N[i].id), tw = g.measureText(w).width, must = i === cur || reach.has(i), off = (i === cur ? 12 : 8) * k * r;
+        const spots = [[x + off, y - th / 2], [x - off - tw, y - th / 2], [x - tw / 2, y - off - th], [x - tw / 2, y + off]];
+        let at = null;
+        for (const [lx, ly] of spots) { const bx = [lx - pad, ly - pad, lx + tw + pad, ly + th + pad];
+          if (lx < 0 || ly < 0 || lx + tw > cv.width || ly + th > cv.height) continue;
+          if (!hitsBox(bx) && !hitsDot(bx, i)) { at = [lx, ly, bx]; break; } }
+        if (!at && must) { const [lx, ly] = spots[0]; at = [lx, ly, [lx - pad, ly - pad, lx + tw + pad, ly + th + pad]]; }
+        if (!at) continue;
+        boxes.push(at[2]);
+        g.lineWidth = 3 * r; g.strokeStyle = 'rgba(15,16,18,.92)'; g.strokeText(w, at[0], at[1] + th / 2);
+        g.fillStyle = i === cur ? '#8ab4f8' : reach.has(i) ? '#fff' : 'rgba(255,255,255,.72)'; g.fillText(w, at[0], at[1] + th / 2);
+      }
+    }
   }
-  map.addEventListener('click', e => {
-    const rc = map.getBoundingClientRect(), mx = (e.clientX - rc.left) * box.r, my = (e.clientY - rc.top) * box.r;
-    let best = 0, bd = 1e9; N.forEach((n, i) => { const [x, y] = box.P(n), d = Math.hypot(x - mx, y - my); if (d < bd) { bd = d; best = i; } });
-    hop(best);
+  // the maps are drawn only when what they show changed (the stop, the heading to a tenth of a degree, the view's width, a size) — the scene can
+  // redraw for a fade or a ring's breath without repainting two canvases
+  function drawMap() { const sg = [cur, lon.toFixed(1), hfov.toFixed(1), big.on ? 1 : 0, map.width, map.height, bigmap.width, bigmap.height, photos.length].join('|');
+    if (sg === mapSig) return; mapSig = sg;
+    drawMapOn(mg, map, box, map.clientWidth < 130 ? 0.8 : 1, false); if (big.on) drawMapOn(big.g, bigmap, big.box, 1.6, true); }
+  // the big map
+  const bigmap = $('bigmap'), big = { on: false, g: bigmap.getContext('2d'), box: null, pad: () => Math.max(40, Math.min(innerWidth, innerHeight) * 0.1) };
+  big.open = () => { if (doll.on) return; stopPlay(); big.on = true; $('mapview').classList.add('show'); big.box = geomOf(bigmap, big.pad(), true);
+    $('bigmapWords').textContent = `${N.length} stops · tap one to go there`; mapSig = ''; drawMap(); $('bigmapClose').focus(); };
+  big.close = () => { if (!big.on) return; big.on = false; $('mapview').classList.remove('show'); map.focus(); };
+  map.addEventListener('click', big.open);
+  map.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); big.open(); } });
+  $('bigmapClose').onclick = big.close;
+  bigmap.addEventListener('click', e => {
+    const rc = bigmap.getBoundingClientRect(), mx = (e.clientX - rc.left) * big.box.r, my = (e.clientY - rc.top) * big.box.r;
+    let best = -1, bd = 28 * big.box.r;                                                      // a stop within 28 px of the finger, else nothing
+    N.forEach((n, i) => { const [x, y] = big.box.P(n), d = Math.hypot(x - mx, y - my); if (d < bd) { bd = d; best = i; } });
+    if (best < 0) return;
+    big.close(); hop(best);
   });
 
   // ---------- reel ----------
   const reel = $('reel');
-  N.forEach((n, i) => { const b = document.createElement('button'); b.setAttribute('aria-label', 'Go to stop ' + n.id); b.style.backgroundImage = `url("${n.th}")`;
-    b.innerHTML = `<i>${n.id}</i>`; b.onclick = () => hop(i); reel.appendChild(b); });
+  N.forEach((n, i) => { const b = document.createElement('button'); b.setAttribute('aria-label', 'Go to stop ' + n.id);
+    b.innerHTML = `<i>${String(n.id).replace(/^0+(?=\d)/, '')}</i>`; b.onclick = () => hop(i); reel.appendChild(b); });
+  setTimeout(() => N.forEach((n, i) => { if (n.th && reel.children[i]) reel.children[i].style.backgroundImage = `url("${String(n.th).replace(/"/g, '%22')}")`; }), 0);
 
   // ---------- ui ----------
   let toastT;
-  function toast(m) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1400); }
+  function toast(m, ms) { const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), ms || 1400); }
   function ui() {
     try { history.replaceState(null, '', '#' + N[cur].id); } catch (e) { /* file:// or sandboxed frame */ }
-    $('count').textContent = `${cur + 1} / ${N.length} · ${BUILD} · ${RES}`;
-    [...reel.children].forEach((b, i) => b.classList.toggle('on', i === cur));
-    reel.children[cur].scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+    $('count').textContent = (location.search.includes('debug') ? `${cur + 1} / ${N.length} · ${BUILD} · ${RES}` : (WHEN ? `${WHEN} · stop ` : 'Stop ') + `${cur + 1} of ${N.length}`)      // the build and picture size are for debugging (?debug), not for the person walking
+      + (photos.length ? ` · ${photos.length} photo${photos.length === 1 ? '' : 's'}` : '');
+    $('bPrev').disabled = cur <= 0; $('bNext').disabled = cur >= N.length - 1;
+    [...reel.children].forEach((b, i) => { b.classList.toggle('on', i === cur); b.classList.toggle('seen', i < cur); });
+    reel.children[cur].scrollIntoView({ inline: 'center', block: 'nearest', behavior: REDUCED ? 'auto' : 'smooth' });
   }
 
   function resize() { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; look(); mapGeom(); doll.cam.aspect = innerWidth / innerHeight; doll.cam.updateProjectionMatrix(); doll.dirty = true; }
@@ -691,19 +1125,25 @@
 
   const _v = new THREE.Vector3();
   function updateEdges() {
-    const w = innerWidth, h = innerHeight, mx = 70, top = 70, bot = 150;
+    const nav = $('reel').getBoundingClientRect(), w = innerWidth, h = innerHeight, mx = 70, top = 70, bot = Math.max(150, h - nav.top + 14), placed = [];
     for (const e of edges) {
       if (busy) { e.el.style.display = 'none'; continue; }
       _v.copy(e.pos).project(camera);
       let x = _v.x, y = _v.y;
       if (_v.z > 1) { x = -x; y = -y; }
       const onscreen = _v.z <= 1 && Math.abs(x) < 0.82 && Math.abs(y) < 0.82;
-      if (onscreen) { e.el.style.display = 'none'; continue; }
+      const ahead = Math.abs(((e.az - lon) % 360 + 540) % 360 - 180) < hfov / 2 * 0.8;
+      if (onscreen || (ahead && _v.z <= 1)) { e.el.style.display = 'none'; continue; }
       let a = Math.atan2(y, x), px = Math.cos(a), py = Math.sin(a);
       const k = Math.min(((w / 2 - mx) / Math.abs(px || 1e-6)), ((h / 2 - (py > 0 ? top : bot)) / Math.abs(py || 1e-6)));
       const sx = w / 2 + px * k, sy = h / 2 - py * k;
       e.el.style.display = 'inline-flex';
-      e.el.style.transform = `translate(${Math.round(sx - e.el.offsetWidth / 2)}px, ${Math.round(sy - e.el.offsetHeight / 2)}px)`;
+      let lx = Math.round(sx - e.el.offsetWidth / 2), ly = Math.round(sy - e.el.offsetHeight / 2);
+      for (const o of placed) if (Math.abs(o[1] - ly) < e.el.offsetHeight + 6 && lx < o[0] + o[2] + 8 && lx + e.el.offsetWidth + 8 > o[0])      // never on top of the other one
+        lx = (sx < w / 2 || o[0] + o[2] + 8 + e.el.offsetWidth > w - 8) ? o[0] - e.el.offsetWidth - 8 : o[0] + o[2] + 8;
+      lx = Math.max(8, Math.min(w - 8 - e.el.offsetWidth, lx));
+      placed.push([lx, ly, e.el.offsetWidth]);
+      e.el.style.transform = `translate(${lx}px, ${ly}px)`;
     }
   }
 
@@ -716,18 +1156,76 @@
     occMesh && occMesh.id, tilesLoaded, cursor.visible ? 1 : 0, cursor.position.x.toFixed(2), cursor.position.y.toFixed(2), cursor.position.z.toFixed(2),
     cursor.scale.x.toFixed(2), curMats.map(([m]) => m.opacity.toFixed(2)).join('')].join('|');
   window.__renders = () => renders;
+  // ---------- the drawing comes back by itself ----------
+  // three.js keeps the context on 'webglcontextlost' (preventDefault) and rebuilds its state on 'webglcontextrestored'; every texture and geometry is
+  // uploaded again on the next frame from the pictures still held here. What it cannot do is ask for the context back, so: a context lost and not
+  // restored within GL_WAIT_MS is asked back once (WEBGL_lose_context.restoreContext, three's forceContextRestore), and if it still is not back the page
+  // says so with Tap to reload. A context that is there but has drawn nothing but black GL_BLACK_MS after the first picture is the same failure.
+  // Nothing is sent to the page that frames this one.
+  const gl = renderer.getContext(), GL_WAIT_MS = 2500, GL_BLACK_MS = 4000;
+  const loseExt = gl.getExtension('WEBGL_lose_context');             // taken now: a lost context hands out no extension, so it could not be asked for later
+  const glRestore = () => { try { if (loseExt) loseExt.restoreContext(); else renderer.forceContextRestore(); } catch (e) { /* not lost, or nothing to ask */ } };
+  const glGuard = { lost: false, t: 0, asked: false, checked: false, restores: 0 };
+  const glFail = words => { $('glfailWords').textContent = words || 'The picture stopped drawing on this screen.'; $('glfail').classList.add('show'); };
+  const glOk = () => $('glfail').classList.remove('show');
+  function glAskBack() {
+    if (!glGuard.lost) return;
+    glRestore();
+    clearTimeout(glGuard.t); glGuard.t = setTimeout(() => { if (glGuard.lost) glFail(); }, GL_WAIT_MS);
+  }
+  el.addEventListener('webglcontextlost', e => {
+    e.preventDefault(); glGuard.lost = true; clearTimeout(glGuard.t);
+    glGuard.t = setTimeout(() => { if (!glGuard.lost) return; if (!glGuard.asked && !document.hidden) { glGuard.asked = true; glAskBack(); } else if (!document.hidden) glFail(); }, GL_WAIT_MS);
+  }, false);
+  el.addEventListener('webglcontextrestored', () => {
+    glGuard.lost = false; glGuard.asked = false; glGuard.restores++; clearTimeout(glGuard.t); glOk();
+    tileMeshes.forEach(m => { if (m.material.map) m.material.map.needsUpdate = true; });
+    lastSig = ''; mapSig = ''; settle = 12; glGuard.checked = false; setTimeout(glCheck, 600);
+  }, false);
+  // back from the background (where Android drops a web view's context): ask for it now instead of waiting for a frame that never draws
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && (glGuard.lost || gl.isContextLost())) { glGuard.lost = true; glAskBack(); } });
+  // draws at all? one frame rendered and read straight back, before the browser shows it: five points of the picture all exactly black is a dead canvas
+  function glDraws() {
+    if (gl.isContextLost()) return false;
+    renderer.render(scene, camera);
+    const W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, px = new Uint8Array(4);
+    let lit = 0;
+    for (const [fx, fy] of [[.5, .5], [.25, .3], [.75, .3], [.25, .7], [.75, .7]]) {
+      gl.readPixels(Math.floor(W * fx), Math.floor(H * fy), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      if (px[0] + px[1] + px[2] > 6) lit++;
+    }
+    return lit > 0;
+  }
+  function glCheck() {
+    if (glGuard.checked || document.hidden || busy) { if (!glGuard.checked) setTimeout(glCheck, 800); return; }
+    glGuard.checked = true;
+    if (glGuard.lost || gl.isContextLost()) return;
+    if (!glDraws()) glFail('The picture did not draw on this screen.');
+  }
+  $('glfailGo').onclick = () => {
+    glOk();
+    if (glGuard.lost || gl.isContextLost()) {                                 // ask the context back; reload the page if it does not come
+      glGuard.lost = true; glRestore();
+      clearTimeout(glGuard.t); glGuard.t = setTimeout(() => { if (glGuard.lost) location.reload(); }, GL_WAIT_MS);
+    } else if (glDraws()) { lastSig = ''; settle = 12; }                      // it draws now
+    else location.reload();
+  };
   renderer.setAnimationLoop(now => {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
     if (doll.on) { doll.frame(now); return; }
     if (keys.l) lon -= 70 * dt; if (keys.r) lon += 70 * dt;
+    if (fling && !busy) { lon += fling.vx * dt; lat += fling.vy * dt; const f = Math.pow(0.06, dt); fling.vx *= f; fling.vy *= f; if (Math.hypot(fling.vx, fling.vy) < 4) fling = null; }
+    gyroTick();
     if (!busy) look();
-    const sg = viewSig();
+    const ringMoved = !busy && !gliding && ringTick(now);
+    navTick();
+    const sg = viewSig() + (ringMoved ? '|r' + now : '');
     if (sg !== lastSig || busy || gliding) { if (TILE_MODE && sg !== lastSig) tileTick(); lastSig = sg; lastBeat = now; settle = 12; }
     else if (now - lastBeat > 1000) { lastBeat = now; settle = Math.max(settle, 1); }          // heartbeat: one frame
     if (settle <= 0) return;
     settle--;
-    updateEdges(); drawMap();
-    if (gliding) { renderer.autoClear = false; renderer.clear(); renderer.render(sceneA, camera); renderer.clearDepth(); renderer.render(sceneB, camera); renderer.autoClear = true; }
+    updateEdges(); drawMap(); updatePins(); updatePhotoPins();
+    if (gliding) { renderer.autoClear = false; renderer.clear(); renderer.render(sceneB, camera); renderer.clearDepth(); renderer.render(sceneA, camera); renderer.autoClear = true; }
     else renderer.render(scene, camera);
     renders++;
   });
@@ -743,7 +1241,7 @@
   scene.add(meas.group);
   function measMark(g, p, size) { const m = new THREE.Mesh(new THREE.SphereGeometry(size, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff3b30, depthTest: false })); m.position.copy(p); m.renderOrder = 20; g.add(m); }
   function measureClear() { meas.a = meas.b = null; while (meas.group.children.length) meas.group.remove(meas.group.children[0]); if (doll.measure) { while (doll.measure.children.length) doll.measure.remove(doll.measure.children[0]); } $('measure').classList.remove('show'); }
-  function measureShow(m) { meas.last = m; $('measure').textContent = fmtLen(m); $('measure').classList.add('show'); }
+  function measureShow(m) { meas.last = m; $('measure').textContent = fmtLen(m) + (typeof tour.measure_pct === 'number' ? '  (about ±' + Math.max(1, Math.round(tour.measure_pct)) + ' %)' : ''); $('measure').classList.add('show'); }
   function measurePoint(p, group, size) {
     if (meas.b || !meas.a) { measureClear(); meas.a = p.clone(); measMark(group, p, size); $('measure').textContent = 'Tap the second point'; $('measure').classList.add('show'); return null; }
     meas.b = p.clone(); measMark(group, p, size);
@@ -758,9 +1256,12 @@
   }
   function setMeasure(on) { meas.on = on; $('bMeas').classList.toggle('on', on); if (!on) measureClear(); else toast('Tap two points'); }
   $('bMeas').onclick = () => setMeasure(!meas.on);
+  // how far to trust it: tour.measure_pct is the median error measured against tape (qa/scoreboard.py); above 10 % the button is hidden
+  const MPCT = typeof tour.measure_pct === 'number' ? tour.measure_pct : null;
+  if (MPCT === null || MPCT > 10) $('bMeas').hidden = true; else keyWord('bMeas', 'Measure ±' + Math.max(1, Math.round(MPCT)) + ' %');
 
   // ---------- dollhouse: every stop's depth fused into one model; orbit it from above, tap a spot to fly back into the nearest stop ----------
-  const dollPos = i => new THREE.Vector3(N[i].x, N[i].h || 2.1, -N[i].y);        // map metres (x east, y north) -> three (x, up, -north)
+  const dollPos = i => new THREE.Vector3(N[i].x, (N[i].h || 2.1) + (N[i].z || 0), -N[i].y);        // map metres (x east, y north) -> three (x, up, -north); z = the stop's ground over the walk's zero
   async function dollLoad() {
     if (doll.loaded) return doll.loaded;
     doll.loaded = (async () => {
@@ -775,18 +1276,58 @@
         pos[k * 3] = X; pos[k * 3 + 1] = Z; pos[k * 3 + 2] = -Y;
       }
       const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-      const cf = new Float32Array(nv * 3); for (let k = 0; k < nv * 3; k++) cf[k] = Math.pow(col[k] / 255, 2.2);   // the picture colours are sRGB; the renderer outputs sRGB
-      g.setAttribute('color', new THREE.BufferAttribute(cf, 3));
-      g.setIndex(new THREE.BufferAttribute(idx, 1)); g.computeBoundingBox(); g.computeBoundingSphere();
-      g.computeVertexNormals();
-      const mesh = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, clippingPlanes: [doll.roof] }));   // lit from above so the shape reads; the roof is cut away
+      let dmat;
+      if (meta.tex && meta.tex.uv) {
+        // v2: a real UV atlas (xatlas): positions int16, uv uint16, indices uint32
+        const pos2 = new Float32Array(nv * 3), uv2 = new Float32Array(nv * 2);
+        const U = new Uint16Array(buf, nv * 6, nv * 2), I2 = new Uint32Array(buf.slice(nv * 6 + nv * 4, nv * 6 + nv * 4 + nt * 12));
+        for (let k = 0; k < nv; k++) {
+          const X = meta.lo[0] + (q[k * 3] + 32768) / 65535 * meta.span[0], Y = meta.lo[1] + (q[k * 3 + 1] + 32768) / 65535 * meta.span[1], Z = meta.lo[2] + (q[k * 3 + 2] + 32768) / 65535 * meta.span[2];
+          pos2[k * 3] = X; pos2[k * 3 + 1] = Z; pos2[k * 3 + 2] = -Y;
+          uv2[k * 2] = U[k * 2] / 65535; uv2[k * 2 + 1] = U[k * 2 + 1] / 65535;
+        }
+        g.setAttribute('position', new THREE.BufferAttribute(pos2, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv2, 2)); g.setIndex(new THREE.BufferAttribute(I2, 1));
+        const map = await new Promise((res, rej) => new THREE.TextureLoader().load(meta.tex.file, res, undefined, rej));
+        map.encoding = THREE.sRGBEncoding; map.anisotropy = maxAniso; map.minFilter = THREE.LinearMipmapLinearFilter; map.magFilter = THREE.LinearFilter;
+        dmat = new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide, clippingPlanes: [doll.roof] });
+      } else if (meta.tex) {
+        // coloured from the pictures: triangle t owns a k x k block of the atlas (column t % per_row, row t / per_row); its corners sit on the centres of three corner texels
+        const tx = meta.tex, kk = tx.k, pr = tx.per_row, P = new Float32Array(nt * 9), UV = new Float32Array(nt * 6);
+        const co = [[0.5, 0.5], [kk - 0.5, 0.5], [0.5, kk - 0.5]];
+        for (let t = 0; t < nt; t++) {
+          const bx = (t % pr) * kk, by = Math.floor(t / pr) * kk;
+          for (let c = 0; c < 3; c++) {
+            const vi = idx[t * 3 + c], o = (t * 3 + c);
+            P[o * 3] = pos[vi * 3]; P[o * 3 + 1] = pos[vi * 3 + 1]; P[o * 3 + 2] = pos[vi * 3 + 2];
+            UV[o * 2] = (bx + co[c][0]) / tx.width; UV[o * 2 + 1] = 1 - (by + co[c][1]) / tx.height;
+          }
+        }
+        g.setAttribute('position', new THREE.BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.BufferAttribute(UV, 2));
+        const map = await new Promise((res, rej) => new THREE.TextureLoader().load(tx.file, res, undefined, rej));
+        map.encoding = THREE.sRGBEncoding; map.generateMipmaps = false; map.minFilter = THREE.LinearFilter; map.magFilter = THREE.LinearFilter;   // no mipmaps: they would bleed one triangle's block into the next
+        dmat = new THREE.MeshBasicMaterial({ map, side: THREE.DoubleSide, clippingPlanes: [doll.roof] });
+      } else {
+        g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+        const cf = new Float32Array(nv * 3); for (let k = 0; k < nv * 3; k++) cf[k] = Math.pow(col[k] / 255, 2.2);   // the picture colours are sRGB; the renderer outputs sRGB
+        g.setAttribute('color', new THREE.BufferAttribute(cf, 3));
+        g.setIndex(new THREE.BufferAttribute(idx, 1));
+        dmat = null;
+      }
+      g.computeBoundingBox(); g.computeBoundingSphere();
+      // the roof comes off just under the ceiling the model found, so the walls stand to their full height (3.2 m when the model does not say)
+      // (cut_m is the same cut the plan makes, 2.6 m at most; a dollhouse built before it falls back to the old rule; ?roof shows the whole model)
+      doll.roof.constant = typeof meta.cut_m === 'number' ? meta.cut_m : meta.ceiling_m ? Math.max(2.4, meta.ceiling_m - 0.2) : Math.max(2.4, Math.min(3.2, (meta.lo[2] + meta.span[2]) - 0.6));
+      if (!meta.ceiling_m && typeof meta.cut_m !== 'number') doll.roof.constant = 1e4;           // no ceiling found (outdoors): nothing is cut away
+      if (location.search.includes('roof')) doll.roof.constant = 1e4;
+      doll.axis = (typeof meta.axis_deg === 'number') ? meta.axis_deg : null;
+      if (!dmat) { g.computeVertexNormals(); dmat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, clippingPlanes: [doll.roof] }); }   // lit from above so the shape reads; the roof is cut away
+      const mesh = new THREE.Mesh(g, dmat);
       doll.scene.add(new THREE.HemisphereLight(0xffffff, 0x666666, 0.9)); const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(0.4, 1, 0.6); doll.scene.add(sun);
-      doll.scene.add(mesh); doll.mesh = mesh; doll.info = { vertices: nv, triangles: nt, bytes: meta.bytes + 0 };
+      doll.scene.add(mesh); doll.mesh = mesh; doll.info = { vertices: nv, triangles: nt, bytes: meta.bytes + (meta.tex ? meta.tex.bytes : 0) };
       const c = new THREE.Vector3(); g.boundingBox.getCenter(c); c.y = 1.0; doll.target.copy(c);
-      doll.radius = Math.max(6, Math.min(30, g.boundingSphere.radius * 0.7)); doll.dist = doll.radius * 2.4;
-      const sph = new THREE.SphereGeometry(0.28, 14, 10), mat = new THREE.MeshBasicMaterial({ color: 0xffb020 });
-      N.forEach((n, i) => { if (n.x == null) return; const m = new THREE.Mesh(sph, mat); m.position.copy(dollPos(i)); m.position.y = 0.35; m.userData.stop = i; doll.markers.add(m); });
+      doll.radius = Math.max(6, Math.min(30, g.boundingSphere.radius * 0.7)); doll.dist = doll.radius * 2.4 * (innerWidth < innerHeight ? 1.3 : 1);
+      const sph = new THREE.SphereGeometry(0.16, 14, 10), mat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.92 });
+      N.forEach((n, i) => { if (n.x == null) return; const m = new THREE.Mesh(sph, mat); m.position.copy(dollPos(i)); m.position.y = 0.22 + (n.z || 0); m.userData.stop = i; doll.markers.add(m); });
       return doll.info;
     })();
     return doll.loaded;
@@ -799,21 +1340,58 @@
   let dollSig = '';
   doll.frame = now => {
     if (doll.tw) { const k = Math.min(1, (now - doll.tw.t0) / doll.tw.ms), e = k * k * (3 - 2 * k); doll.tw.step(e); doll.dirty = true; if (k >= 1) { const f = doll.tw.done; doll.tw = null; f && f(); return; } }
-    const sg = [doll.az.toFixed(3), doll.pol.toFixed(3), doll.dist.toFixed(2), innerWidth, innerHeight, doll.measure.children.length, doll.cam.position.y.toFixed(2)].join('|');
+    const sg = [doll.az.toFixed(3), doll.pol.toFixed(3), doll.dist.toFixed(2), innerWidth, innerHeight, doll.measure.children.length, doll.cam.position.y.toFixed(2), doll.target.x.toFixed(2), doll.target.z.toFixed(2)].join('|');
     if (sg === dollSig && !doll.dirty) return;
     dollSig = sg; doll.dirty = false;
     if (!doll.tw) dollCamera();
-    renderer.render(doll.scene, doll.cam); renders++;
+    dollScale(); renderer.render(doll.scene, doll.cam); renders++;
   };
   doll.down = e => { doll.ptr.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, moved: 0 }); if (doll.ptr.size === 2) { const [a, b] = [...doll.ptr.values()]; doll.pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), dist: doll.dist }; } };
   doll.move = e => {
     const p = doll.ptr.get(e.pointerId); if (!p) return;
     const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY; p.moved = Math.max(p.moved, Math.abs(e.clientX - p.x0) + Math.abs(e.clientY - p.y0));
-    if (doll.ptr.size === 2 && doll.pinch) { const [a, b] = [...doll.ptr.values()]; doll.dist = Math.max(3, Math.min(90, doll.pinch.dist * doll.pinch.d / Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)))); doll.dirty = true; return; }
+    if (doll.ptr.size === 2 && doll.pinch) { const [a, b] = [...doll.ptr.values()]; const old = doll.dist, nd = Math.max(DOLL_MIN, Math.min(90, doll.pinch.dist * doll.pinch.d / Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)))); if (nd < old) doll.zoomToward((a.x + b.x) / 2, (a.y + b.y) / 2, 1 - nd / old); doll.dist = nd; doll.dirty = true; return; }
     doll.az -= dx * 0.006; doll.pol = Math.max(0.12, Math.min(1.5, doll.pol - dy * 0.006)); doll.dirty = true;
   };
-  doll.up = e => { const p = doll.ptr.get(e.pointerId); doll.ptr.delete(e.pointerId); if (doll.ptr.size < 2) doll.pinch = null; if (p && p.moved < 6 && e.type === 'pointerup') doll.tap(e.clientX, e.clientY); };
-  doll.wheel = dy => { doll.dist = Math.max(3, Math.min(90, doll.dist * Math.exp(dy * 0.0012))); doll.dirty = true; };
+  doll.up = e => { const p = doll.ptr.get(e.pointerId); doll.ptr.delete(e.pointerId); if (doll.ptr.size < 2) doll.pinch = null; if (p && p.moved < 6 && e.type === 'pointerup') doll.tap(e.clientX, e.clientY); else if (p && e.type === 'pointerup') doll.snapCheck(); };
+  // zooming in pulls the orbit centre toward what is under the pointer (the nearest stop marker, else the plane through the centre), so you can fly at a stop
+  doll.zoomToward = (x, y, k) => {
+    if (!(k > 0)) return;
+    dollCamera(); const r = el.getBoundingClientRect(), w = r.width, h = r.height;
+    let pt = null, bd = 36 * 36; const now = performance.now();
+    if (doll.zs != null && now - doll.zsT < 600) pt = dollPos(doll.zs);                  // a run of wheel clicks keeps flying at the same stop
+    else {
+      const mk = {}; doll.markers.children.forEach(m => { mk[m.userData.stop] = m.position; });
+      N.forEach((n, i) => { if (n.x == null) return; doll.zs = null;
+        for (const q of [dollPos(i), mk[i]]) { if (!q) continue; const v = q.clone().project(doll.cam); if (v.z > 1) continue; const d = ((v.x + 1) / 2 * w + r.left - x) ** 2 + ((1 - v.y) / 2 * h + r.top - y) ** 2; if (d < bd) { bd = d; pt = dollPos(i); doll.zs = i; } } });
+    }
+    if (pt) doll.zsT = now;
+    if (!pt) { doll.ray.setFromCamera({ x: (x - r.left) / w * 2 - 1, y: -(y - r.top) / h * 2 + 1 }, doll.cam); const o = doll.ray.ray.origin, d = doll.ray.ray.direction; if (Math.abs(d.y) > 1e-3) { const t = (doll.target.y - o.y) / d.y; if (t > 0 && t < 400) pt = o.clone().addScaledVector(d, t); } }
+    if (pt) { doll.target.lerp(pt, k); doll.dirty = true; }
+  };
+  doll.wheel = (dy, x, y) => {
+    const old = doll.dist, nd = Math.max(DOLL_MIN, Math.min(90, old * Math.exp(dy * 0.0012)));
+    if (x != null && dy < 0) doll.zoomToward(x, y, nd < old ? 1 - nd / old : 0.25);          // already as close as the orbit goes: keep drawing the centre toward the pointer
+    doll.dist = nd; doll.dirty = true; doll.snapCheck();
+  };
+  // the orbit camera has come within SNAP_M of a stop's camera position: leave the dollhouse and stand in that stop, looking the way the camera was looking
+  doll.snapCheck = () => {
+    if (!doll.on || doll.tw || !doll.mesh) return false;
+    dollCamera(); const c = doll.cam.position; let best = -1, bd = SNAP_M;
+    if (doll.zs != null && performance.now() - doll.zsT < 1500 && c.distanceTo(dollPos(doll.zs)) < SNAP_M) { best = doll.zs; bd = 0; }      // the stop he was flying at wins over a neighbour
+    N.forEach((n, i) => { if (n.x == null) return; const d = c.distanceTo(dollPos(i)); if (d < bd) { bd = d; best = i; } });
+    if (best < 0) return false;
+    const f = new THREE.Vector3(); doll.cam.getWorldDirection(f); const hz = Math.hypot(f.x, f.z), p0 = dollPos(best);
+    doll.exit(best, hz > 0.2 ? p0.clone().add(new THREE.Vector3(f.x / hz * 5, 0, f.z / hz * 5)) : null);
+    return true;
+  };
+  // stop markers and photo pins keep about the same size on screen at any range
+  const DOLL_MARK_PX = Math.max(6, Math.min(20, 14)), DOLL_PHOTO_PX = 18;
+  function dollScale() {
+    const tf = Math.tan(doll.cam.fov * D2R / 2), cp = doll.cam.position, H = innerHeight;
+    for (const m of doll.markers.children) m.scale.setScalar(DOLL_MARK_PX * tf * cp.distanceTo(m.position) / (0.16 * H));
+    for (const s of dollPhotos.children) { const k = DOLL_PHOTO_PX * 2 * tf * cp.distanceTo(s.position) / H; s.scale.set(k, k, 1); }
+  }
   doll.hit = (x, y) => {
     const r = el.getBoundingClientRect(); doll.ray.setFromCamera({ x: (x - r.left) / r.width * 2 - 1, y: -(y - r.top) / r.height * 2 + 1 }, doll.cam);
     const m = doll.ray.intersectObjects(doll.markers.children, false)[0];
@@ -823,6 +1401,9 @@
   doll.tap = (x, y) => {
     dollCamera();
     const h = doll.hit(x, y);
+    if (noteMode) { if (h.surface) { dollNoteAt(h.surface.point); } return null; }
+    const nb = doll.ray.intersectObjects(dollNotes.children, false)[0]; if (nb && !meas.on) { noteOpen(nb.object.userData.note, false); return null; }
+    const pb = dollPhotos.children.length && doll.ray.intersectObjects(dollPhotos.children, false)[0]; if (pb && !meas.on) { openPhoto(pb.object.userData.photo); return null; }
     if (meas.on) { if (h.surface) { const w = measurePoint(h.surface.point, doll.measure, Math.max(0.05, doll.dist * 0.006)); doll.dirty = true; return w; } return null; }
     if (h.marker) return doll.exit(h.marker.object.userData.stop, null);
     if (!h.surface) { toast('Tap the model'); return; }
@@ -833,45 +1414,287 @@
   doll.exit = (j, spot) => {                                         // fly down into stop j, looking at the tapped spot, then hand over to the panorama
     if (j == null || j < 0) { doll.on = false; doll.leave(); return; }
     const from = doll.cam.position.clone(), fromT = doll.target.clone(), to = dollPos(j), n = N[j];
-    const look = spot ? spot.clone() : to.clone().add(new THREE.Vector3(Math.sin(n.H * D2R), 0, -Math.cos(n.H * D2R)));
-    const bearing = (Math.atan2(look.x - n.x, -look.z - n.y) / D2R), lonNew = bearing - n.H;
-    const tgtEnd = new THREE.Vector3().copy(to).lerp(look, 0.05);
+    const lookPt = spot ? spot.clone() : to.clone().add(new THREE.Vector3(Math.sin(n.H * D2R), 0, -Math.cos(n.H * D2R)));
+    const bearing = (Math.atan2(lookPt.x - n.x, -lookPt.z - n.y) / D2R), lonNew = bearing - n.H;
+    const tgtEnd = new THREE.Vector3().copy(to).lerp(lookPt, 0.05);
     doll.tw = { t0: performance.now(), ms: 650, step: e => { doll.cam.position.lerpVectors(from, to, e); const t = new THREE.Vector3().lerpVectors(fromT, tgtEnd, e); doll.cam.lookAt(t); },
       done: async () => { doll.on = false; doll.leave(); lon = ((lonNew + 540) % 360) - 180; lat = -10; await go(j, true); look(); } };
   };
-  doll.leave = () => { $('bDoll').classList.remove('on'); $('reel').style.display = ''; $('map').style.display = ''; $('title').style.display = ''; renderer.setClearColor(0x000000, 1); lastSig = ''; settle = 12; };
+  doll.leave = () => { $('bDoll').classList.remove('on'); $('reel').style.display = ''; $('map').style.display = ''; $('maplabel').style.display = ''; $('title').style.display = ''; renderer.setClearColor(0x000000, 1); lastSig = ''; settle = 12; };
   async function dollOpen() {
     if (doll.on) return doll.exit();
     toast('Loading the dollhouse…');
     try { await dollLoad(); } catch (e) { doll.loaded = null; toast('This tour has no dollhouse'); return; }
     measureClear(); setMeasure(false);
     doll.on = true; doll.dirty = true; dollSig = '';
-    const n = N[cur]; doll.az = Math.PI + (n.H || 0) * D2R * 0.0 + 0.4; doll.pol = 0.85;
-    $('bDoll').classList.add('on'); $('reel').style.display = 'none'; $('map').style.display = 'none'; hotGroup.visible = false; cursor.visible = false;
+    // the way a person would first look at the place: across its long axis (the walls' run, else the footprint's), from the side of the stop he is at,
+    // tilted 50 degrees down; the long side lies across the screen like the plan
+    const n = N[cur];
+    if (doll.axis != null) {
+      const ph = doll.axis * D2R; let e = -Math.sin(ph), no = Math.cos(ph);                   // a direction across the axis (east, north)
+      if (n.x != null && (n.x - doll.target.x) * e + (n.y + doll.target.z) * no < 0) { e = -e; no = -no; }
+      doll.az = Math.atan2(e, -no);
+    } else doll.az = Math.PI + 0.4;
+    doll.pol = 0.85;
+    $('bDoll').classList.add('on'); $('reel').style.display = 'none'; $('map').style.display = 'none'; $('maplabel').style.display = 'none'; hotGroup.visible = false; cursor.visible = false;
+    renderer.setClearColor(0x15161a, 1);                                // a dark backdrop, not black: what the model never saw reads as backdrop, not as a hole in it
     for (const e of edges) e.el.style.display = 'none';
   }
   $('bDoll').onclick = dollOpen;
-  if (tour.dollhouse) $('bDoll').hidden = false;
-  if (tour.plan) $('bPlan').hidden = false;
+  // THE DOLLHOUSE AND THE PLAN ARE NOT READY (2026-10-31): built and kept, shown only with ?lab in the address until they are good enough
+  const LAB = /[?&]lab/.test(location.search);
+  if (LAB && tour.dollhouse) $('bDoll').hidden = false;
+  if (LAB && tour.plan) $('bPlan').hidden = false;
+
+
+  // ---------- pinned notes: press and hold (or right-click, or the Note button then tap) a spot; the note is seen from every stop that can see that spot ----------
+  // A note is {id, x, y, z (map metres, z up from the floor), text, photo (a small jpeg as a data: URL), t}. They live in this browser (localStorage) and, when the tour is opened from
+  // serve_tour.py (python tour.py --serve), in notes.json next to the tour AND in the walk's folder; "Export notes" downloads the same file for any other host.
+  const nid = () => 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const viewToMap = p => { const n = N[cur], az = Math.atan2(p.x, -p.z), d = Math.hypot(p.x, p.z), b = (n.H || 0) * D2R + az; return { x: n.x + d * Math.sin(b), y: n.y + d * Math.cos(b), z: (n.h || 2.1) + p.y }; };
+  const mapToView = nt => { const n = N[cur], dx = nt.x - n.x, dy = nt.y - n.y, d = Math.hypot(dx, dy), az = Math.atan2(dx, dy) - (n.H || 0) * D2R; return new THREE.Vector3(d * Math.sin(az), nt.z - (n.h || 2.1), -d * Math.cos(az)); };
+  async function notesLoad() {
+    try { notes = JSON.parse(localStorage.getItem(NOTE_KEY) || '[]'); } catch (e) { notes = []; }
+    try { const r = tour.notes ? await fetch('notes.json', { cache: 'no-cache' }) : { ok: false }; if (r.ok) { const s = await r.json(); if (Array.isArray(s)) { const ids = new Set(s.map(x => x.id)); notes = s.concat(notes.filter(x => !ids.has(x.id))); } } } catch (e) { /* none yet */ }
+    notesDirty();
+  }
+  async function notesSave() {
+    try { localStorage.setItem(NOTE_KEY, JSON.stringify(notes)); } catch (e) { /* private window */ }
+    try { const r = await fetch('notes.json', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(notes) }); notesServer = r.ok; } catch (e) { notesServer = false; }
+    return notesServer;
+  }
+  function notesDirty() { noteOcc = ''; lastSig = ''; settle = 12; dollNotesBuild(); }
+  function noteOpen(nt, fresh) {
+    noteEdit = nt; $('noteText').value = nt.text || ''; const im = $('notePhoto'); im.hidden = !nt.photo; if (nt.photo) im.src = nt.photo;
+    $('noteDel').hidden = fresh; $('noteInfo').textContent = new Date(nt.t || Date.now()).toLocaleString(); $('noteEd').classList.add('show'); noteFresh = fresh;
+  }
+  function noteClose() { $('noteEd').classList.remove('show'); noteEdit = null; setNoteMode(false); }
+  $('noteSave').onclick = async () => {
+    if (!noteEdit) return; noteEdit.text = $('noteText').value.trim();
+    if (!noteEdit.text && !noteEdit.photo) { toast('Write something or add a photo'); return; }
+    if (!notes.includes(noteEdit)) notes.push(noteEdit);
+    noteEdit.t = Date.now(); notesDirty(); await notesSave();
+    toast(notesServer ? 'Note saved to the walk folder' : 'Note saved in this browser (Export notes keeps a file)'); $('noteEd').classList.remove('show'); noteEdit = null; setNoteMode(false);
+  };
+  $('noteDel').onclick = async () => { if (!noteEdit) return; notes = notes.filter(x => x !== noteEdit); notesDirty(); await notesSave(); $('noteEd').classList.remove('show'); noteEdit = null; toast('Note deleted'); };
+  $('noteClose').onclick = noteClose;
+  $('noteExport').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(notes, null, 1)], { type: 'application/json' })); a.download = 'notes.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+  $('noteFile').onchange = e => {
+    const f = e.target.files[0]; if (!f || !noteEdit) return;
+    const img = new Image(); img.onload = () => {
+      const s = Math.min(1, 640 / Math.max(img.width, img.height)), c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); noteEdit.photo = c.toDataURL('image/jpeg', 0.7); $('notePhoto').src = noteEdit.photo; $('notePhoto').hidden = false; URL.revokeObjectURL(img.src); };
+    img.src = URL.createObjectURL(f); e.target.value = '';
+  };
+  function setNoteMode(on) { noteMode = on; $('bNote').classList.toggle('on', on); if (on) toast('Tap a spot to pin a note'); }
+  $('bNote').onclick = () => { if (noteMode) setNoteMode(false); else { if (meas.on) setMeasure(false); setNoteMode(true); } };
+  function noteAt(p, fromDoll) {                                    // a note at a point: p in this stop's view space, or (fromDoll) already in dollhouse world space
+    const m = fromDoll ? { x: p.x, y: -p.z, z: p.y } : viewToMap(p);
+    const nt = Object.assign({ id: nid(), text: '', photo: null, t: Date.now(), stop: N[cur].id }, m);
+    noteOpen(nt, true); return nt;
+  }
+  function notePlace(x, y) {                                        // a note on the surface under this screen point of the stop's picture
+    const s = surfaceHit(x, y); if (!s) { toast('Nothing to pin a note to there'); return null; }
+    return noteAt(s.p.clone().addScaledVector(s.n, 0.03), false);
+  }
+  function updatePins() {                                           // the pins of this stop's view: a DOM button each, hidden when the spot is behind something or off screen
+    const key = cur + '|' + (occMesh && occMesh.id) + '|' + notes.length;
+    if (key !== noteOcc) {
+      noteOcc = key; noteVis.clear();
+      for (const nt of notes) {
+        const v = mapToView(nt), d = v.length(); let ok = d > 0.4 && d < 30;
+        if (ok && occMesh) { fray.set(new THREE.Vector3(), v.clone().normalize()); const h = fray.intersectObject(occMesh, false)[0]; if (h && h.distance < d * 0.85 - 0.25) ok = false; }
+        noteVis.set(nt.id, ok ? v : null);
+      }
+    }
+    const w = innerWidth, h = innerHeight;
+    for (const nt of notes) {
+      let b = pinEls.get(nt.id);
+      if (!b) { b = document.createElement('button'); b.className = 'pin'; b.innerHTML = '<i>\u270E</i>'; b.setAttribute('aria-label', 'Note: ' + (nt.text || 'photo').slice(0, 40)); b.onclick = ev => { ev.stopPropagation(); noteOpen(nt, false); }; document.body.appendChild(b); pinEls.set(nt.id, b); }
+      const v = noteVis.get(nt.id); let show = !!v && !busy && !doll.on;
+      if (show) { _v.copy(v).project(camera); show = _v.z < 1 && Math.abs(_v.x) < 1.05 && Math.abs(_v.y) < 1.05; if (show) b.style.transform = 'translate(' + ((_v.x + 1) / 2 * w) + 'px, ' + ((1 - _v.y) / 2 * h) + 'px)'; }
+      b.style.display = show ? 'block' : 'none';
+    }
+    for (const [id, b] of pinEls) if (!notes.some(x => x.id === id)) { b.remove(); pinEls.delete(id); }
+  }
+  const dollNoteAt = p => noteAt(p, true);
+  // the same notes as small green balls in the dollhouse
+  const dollNotes = new THREE.Group(); doll.scene.add(dollNotes);
+  function dollNotesBuild() {
+    while (dollNotes.children.length) dollNotes.remove(dollNotes.children[0]);
+    const g = new THREE.SphereGeometry(0.16, 12, 8), m = new THREE.MeshBasicMaterial({ color: 0x2fbf71, depthTest: false });
+    for (const nt of notes) { const s = new THREE.Mesh(g, m); s.position.set(nt.x, nt.z, -nt.y); s.renderOrder = 15; s.userData.note = nt; dollNotes.add(s); }
+    doll.dirty = true;
+  }
+  addEventListener('contextmenu', e => { if (e.target === el && !doll.on) { e.preventDefault(); notePlace(e.clientX, e.clientY); } });
+  notesLoad();
+
+  // ---------- photo pins: the day's photos hang on the walk's stops (photos.json) ----------
+  // {id, stop, t, thumb, url, note, az, el}: az is the same view azimuth a link uses (degrees clockwise from the picture's centre), el degrees above the horizon.
+  // With az the pin sits on the surface the stop's depth map measured in that direction (2 m out until it has loaded); without it, it stands on the floor 1.2 m in front of the stop's camera.
+  function stopIx(id) { return N.findIndex(n => n.id === String(id)); }
+
+  // Each photo has a 3D point: from its stop, along (az, el), out to the surface the stop's depth map measured there (2 m out until that depth has loaded or when
+  // the stop has none). A photo without az/el stands 1.2 m in front of the stop's camera at knee height. The point is kept in the stop's view frame (for the sphere)
+  // and in map metres (x east, y north, z up over the walk's zero) for the plan, the minimap and the dollhouse.
+  function depthAlong(D, n, dir) {
+    const l = dir.clone().applyQuaternion(levelQ(n).conjugate());
+    const th = Math.acos(Math.max(-1, Math.min(1, l.y)));
+    let u = Math.atan2(l.z, l.x) / (2 * Math.PI); if (u < 0) u += 1;
+    const cx = Math.min(D.w - 1, Math.floor(u * D.w)), cy = Math.min(D.h - 1, Math.floor(th / Math.PI * D.h)), v = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const x = (cx + dx + D.w) % D.w, y = Math.max(0, Math.min(D.h - 1, cy + dy)), q = D.d[(y * D.w + x) * 4];
+      if (q > 0) v.push(q);
+    }
+    if (v.length < 3) return null;                                  // no measured depth that way (sky, the hole at the feet)
+    v.sort((p, q) => p - q);
+    return Math.min(40, 0.2 * Math.pow(300, v[v.length >> 1] / 255));
+  }
+  function photoCompute(ph, D) {
+    const n = N[stopIx(ph.stop)];
+    let v, depth = false;
+    if (typeof ph.az === 'number' && isFinite(ph.az)) {
+      const dir = dirOf(ph.az, (typeof ph.el === 'number' ? ph.el : 0) * D2R), r = D ? depthAlong(D, n, dir) : null;
+      v = dir.multiplyScalar(r || 2); depth = !!r;
+    } else v = new THREE.Vector3(0, 0.05 - (n.h || 2.1), -1.2);
+    const d = Math.hypot(v.x, v.z), b = (n.H || 0) * D2R + Math.atan2(v.x, -v.z);
+    return { v, depth, x: n.x + d * Math.sin(b), y: n.y + d * Math.cos(b), z: (n.h || 2.1) + (n.z || 0) + v.y };
+  }
+  function photoPts() { return photos.map(ph => ppPt.get(String(ph.id)) && Object.assign({ id: ph.id }, ppPt.get(String(ph.id)))).filter(Boolean); }
+  function dollPhotosBuild() {
+    while (dollPhotos.children.length) dollPhotos.remove(dollPhotos.children[0]);
+    for (const ph of photos) {
+      const pt = ppPt.get(String(ph.id)); if (!pt) continue;
+      const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+      const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
+      const draw = img => {
+        g.clearRect(0, 0, 64, 64); g.fillStyle = '#fff'; g.beginPath(); g.arc(32, 32, 30, 0, 7); g.fill();
+        g.save(); g.beginPath(); g.arc(32, 32, 26, 0, 7); g.clip(); g.fillStyle = '#1a73e8'; g.fillRect(0, 0, 64, 64);
+        if (img && img.width) { const k = Math.min(img.width, img.height); g.drawImage(img, (img.width - k) / 2, (img.height - k) / 2, k, k, 6, 6, 52, 52); }
+        g.restore(); tex.needsUpdate = true; doll.dirty = true;
+      };
+      draw(null);
+      const u = photoUrl(ph.thumb || ph.url);
+      if (u) { const im = new Image(); if (/^https?:/i.test(u)) im.crossOrigin = 'anonymous'; im.onload = () => draw(im); im.src = u; }
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
+      sp.renderOrder = 16; sp.userData.photo = ph.id; sp.position.set(pt.x, pt.z, -pt.y); dollPhotos.add(sp);
+    }
+    doll.dirty = true;
+  }
+  function dollPhotosPlace() { for (const sp of dollPhotos.children) { const pt = ppPt.get(String(sp.userData.photo)); if (pt) sp.position.set(pt.x, pt.z, -pt.y); } doll.dirty = true; }
+  async function ppRefine() {                                       // once, lazily: load the depth of each stop that has a photo with a direction and put those photos on the surface they pointed at
+    const stops = [...new Set(photos.filter(p => typeof p.az === 'number' && isFinite(p.az)).map(p => stopIx(p.stop)))];
+    for (const i of stops) {
+      const D = await depthOf(i); if (!D) continue;
+      for (const ph of photos) if (stopIx(ph.stop) === i) ppPt.set(String(ph.id), photoCompute(ph, D));
+    }
+    dollPhotosPlace(); lastSig = ''; mapSig = ''; settle = 12;
+    if ($('planview').classList.contains('show')) planPhotoDots();
+  }
+  // Every photo's pin shows from every stop, at its 3D point seen from here: hidden past PIN_FAR_M or behind what this stop's depth shows nearer along the way
+  // (more than 0.3 m short of the pin), 44 px up close shrinking to 22 px at PIN_FAR_M, and a pin that belongs to another stop says how far it is.
+  const PIN_FAR_M = 14;
+  function updatePhotoPins() {
+    if (!photos.length) return;
+    const w = innerWidth, h = innerHeight, here = N[cur].id, hide = busy || doll.on || $('planview').classList.contains('show'), n = N[cur], camH = (n.h || 2.1) + (n.z || 0);
+    for (const ph of photos) {
+      const pt = ppPt.get(String(ph.id)); if (!pt) continue;
+      let b = ppEls.get(String(ph.id));
+      if (!b) {
+        b = document.createElement('button'); b.className = 'pp'; const t = photoUrl(ph.thumb || ph.url);
+        b.innerHTML = '<i></i><em></em>'; if (t) b.firstChild.style.backgroundImage = 'url("' + t.replace(/"/g, '%22') + '")';
+        b.setAttribute('aria-label', 'Photo: ' + String(ph.note || ph.id).slice(0, 40)); b.dataset.photo = ph.id;
+        b.onclick = ev => { ev.stopPropagation(); openPhoto(ph.id); }; document.body.appendChild(b); ppEls.set(String(ph.id), b);
+      }
+      const own = String(ph.stop) === here;
+      let v = pt.v, dist = v.length();
+      if (!own) { const dx = pt.x - n.x, dy = pt.y - n.y, d = Math.hypot(dx, dy), az = Math.atan2(dx, dy) - (n.H || 0) * D2R; v = new THREE.Vector3(d * Math.sin(az), pt.z - camH, -d * Math.cos(az)); dist = v.length(); }
+      let show = !hide && dist <= PIN_FAR_M && dist > 0.2;
+      if (show && !own && curD) { const r = depthAlong(curD, n, v.clone().normalize()); if (r != null && r < dist - 0.3) show = false; }
+      if (show) { _v.copy(v).project(camera); show = _v.z < 1 && Math.abs(_v.x) < 1.05 && Math.abs(_v.y) < 1.05; const py = (1 - _v.y) / 2 * h; if (py > h - 52 - 22) show = false; if (show) b.style.transform = 'translate(' + ((_v.x + 1) / 2 * w) + 'px, ' + py + 'px)'; }
+      if (show) {
+        const px = 44 - 22 * Math.min(1, Math.max(0, (dist - 1) / (PIN_FAR_M - 1)));
+        b.firstChild.style.transform = 'scale(' + (px / 44).toFixed(3) + ')'; b.dataset.px = px.toFixed(1); b.dataset.own = own ? '1' : '0'; b.dataset.dist = dist.toFixed(1);
+        const lab = own ? '' : dist.toFixed(1) + ' m'; if (b.lastChild.textContent !== lab) b.lastChild.textContent = lab;
+      }
+      b.style.display = show ? 'block' : 'none';
+    }
+  }
+  function openPhoto(id) {
+    const ph = photos.find(x => String(x.id) === String(id)); if (!ph) return false;
+    $('pboxImg').src = photoUrl(ph.url || ph.thumb); $('pboxImg').alt = String(ph.note || '');
+    $('pboxNote').textContent = ph.note || '';
+    const d = ph.t ? new Date(ph.t) : null; $('pboxTime').textContent = d && !isNaN(d) ? d.toLocaleString() : '';
+    $('pbox').classList.add('show'); return true;
+  }
+  const photoClose = () => $('pbox').classList.remove('show');
+  $('pboxClose').onclick = photoClose;
+  $('pbox').addEventListener('click', e => { if (e.target === $('pbox')) photoClose(); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && $('pbox').classList.contains('show')) { e.preventDefault(); photoClose(); } });
+  function planAffine(svg) {                                      // map metres -> the plan's own coordinates, fitted on the stops' circles
+    const S = []; svg.querySelectorAll('g.stop[data-stop]').forEach(g => { const k = +g.dataset.stop, c = g.querySelector('circle'); if (N[k] && N[k].x != null && c) S.push([N[k].x, N[k].y, parseFloat(c.getAttribute('cx')), parseFloat(c.getAttribute('cy'))]); });
+    if (S.length < 3) return null;
+    let a = 0, b = 0, c = 0, d = 0, e = 0; const n = S.length;
+    for (const [x, y] of S) { a += x * x; b += x * y; c += x; d += y * y; e += y; }
+    const det3 = m => m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6]) + m[2] * (m[3] * m[7] - m[4] * m[6]);
+    const M = [a, b, c, b, d, e, c, e, n], D0 = det3(M); if (Math.abs(D0) < 1e-9) return null;
+    const solve = k => { const r = [0, 0, 0]; for (const s of S) { r[0] += s[0] * s[k]; r[1] += s[1] * s[k]; r[2] += s[k]; }
+      return [0, 1, 2].map(j => { const m = M.slice(); for (let i = 0; i < 3; i++) m[i * 3 + j] = r[i]; return det3(m) / D0; }); };
+    const X = solve(2), Y = solve(3); return (x, y) => [X[0] * x + X[1] * y + X[2], Y[0] * x + Y[1] * y + Y[2]];
+  }
+  function planPhotoDots() {                                       // a small dot where each photo's point is
+    const svg = $('plansvg').querySelector('svg'); if (!svg || !photos.length) return;
+    svg.querySelectorAll('g.photo').forEach(g => g.remove());
+    const A = planAffine(svg); if (!A) return;
+    const vb = svg.viewBox.baseVal, sc = (svg.getBoundingClientRect().width / (vb && vb.width || 1)) || 1, NS = 'http://www.w3.org/2000/svg';
+    for (const p of photoPts()) {
+      const [cx, cy] = A(p.x, p.y);
+      const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'photo'); g.dataset.photo = p.id; g.style.cursor = 'pointer';
+      const hit = document.createElementNS(NS, 'circle'), dot = document.createElementNS(NS, 'circle');
+      for (const [c, r] of [[hit, 14], [dot, 3]]) { c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', r / sc); }
+      hit.setAttribute('fill', '#fff'); hit.setAttribute('fill-opacity', '0.001'); dot.setAttribute('fill', '#1a73e8'); dot.setAttribute('stroke', '#fff'); dot.setAttribute('stroke-width', 1 / sc);
+      g.append(hit, dot); g.onclick = ev => { ev.stopPropagation(); openPhoto(p.id); }; svg.appendChild(g);
+    }
+  }
+  if (photos.length) { for (const ph of photos) ppPt.set(String(ph.id), photoCompute(ph, null)); dollPhotosBuild(); ppRefine(); }
 
   // ---------- floor plan: an SVG made at build time from a slice of the dollhouse at about 1 m ----------
   async function planOpen() {
     try { $('plansvg').innerHTML = await (await fetch('plan.svg', { cache: 'no-cache' })).text(); } catch (e) { toast('No plan in this tour'); return; }
     $('planview').classList.add('show');
+    // a stop on the plan opens that stop (the plan lists the tour's stops in the tour's order)
+    $('plansvg').querySelectorAll('g.stop[data-stop]').forEach(g => { g.onclick = () => { const k = +g.dataset.stop; if (k >= 0 && k < N.length) { $('planview').classList.remove('show'); if (doll.on) doll.exit(); go(k, false); } }; });
+    const me = $('plansvg').querySelector(`g.stop[data-stop="${cur}"] circle:last-child`); if (me) { me.setAttribute('fill', '#1a73e8'); me.setAttribute('r', '7'); }
+    planPhotoDots();
   }
   $('bPlan').onclick = planOpen; $('planClose').onclick = () => $('planview').classList.remove('show');
 
   // ---- test hooks for qa/qa_tour.py (no effect on normal use) ----
+  window.__tm = { photos: () => photos.slice(), photoPoints: () => photoPts().map(p => ({ id: p.id, x: p.x, y: p.y, z: p.z })),
+    visiblePins: () => [...ppEls.values()].filter(b => b.style.display === 'block').map(b => ({ id: b.dataset.photo, own: b.dataset.own === '1', dist: +b.dataset.dist, px: +b.dataset.px, label: b.lastChild.textContent })),
+    rayDepth: (az, el) => { if (!occMesh) return null; fray.set(new THREE.Vector3(), dirOf(az, (el || 0) * D2R)); const h = fray.intersectObject(occMesh, false)[0]; return h ? h.distance : null; }, openPhoto: id => openPhoto(id), closePhoto: photoClose, pins: () => [...ppEls.values()].filter(b => b.style.display === 'block').length,
+    pinScreen: id => { const b = ppEls.get(String(id)); if (!b || b.style.display !== 'block') return null; const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(b.style.transform); return m ? [parseFloat(m[1]), parseFloat(m[2])] : null; } };
   window.__tour = {
     build: BUILD, n: N.length,
-    state: () => ({ cur, busy, res: RES, lon, hfov, vfov: Math.round(vfov() * 10) / 10, aspect: camera.aspect, lastGlideMs, cursor: cursor.visible, hasDepth: !!occMesh, texMB: texMB(), hiMB: ((hiTex ? bytesOf.get(hiTex) || 0 : 0) + tileMeshes.reduce((a, m) => a + (m.material.map ? bytesOf.get(m.material.map) || 0 : 0), 0)) / 1048576, tiles: tileMeshes.filter(m => m.material.map).length, tileMode: TILE_MODE, bitmap: bitmapUsed }),
+    state: () => ({ cur, busy, gliding, res: RES, lon, lat, gyro: gyro.on, gyroSrc: gyro.src, hfov, vfov: Math.round(vfov() * 10) / 10, aspect: camera.aspect, lastGlideMs, cursor: cursor.visible, hasDepth: !!occMesh, texMB: texMB(), hiMB: ((hiTex ? bytesOf.get(hiTex) || 0 : 0) + tileMeshes.reduce((a, m) => a + (m.material.map ? bytesOf.get(m.material.map) || 0 : 0), 0)) / 1048576, tiles: tileMeshes.filter(m => m.material.map).length, tileMode: TILE_MODE, bitmap: bitmapUsed }),
     go: j => go(j),
     measure: (x1, y1, x2, y2) => { setMeasure(true); measureClear(); measureTap(x1, y1); const d = measureTap(x2, y2); setMeasure(false); return d; },
     measured: () => meas.last,
     doll: { open: dollOpen, state: () => ({ on: doll.on, loaded: !!doll.mesh, info: doll.info, az: doll.az, pol: doll.pol, dist: doll.dist, markers: doll.markers.children.length, stop: cur }),
             markerScreen: i => { dollCamera(); const m = doll.markers.children.find(c => c.userData.stop === i); if (!m) return null; const v = m.position.clone().project(doll.cam); const r = el.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; },
             tap: (x, y) => doll.tap(x, y), drag: (dx, dy) => { doll.az -= dx * 0.006; doll.pol = Math.max(0.12, Math.min(1.5, doll.pol - dy * 0.006)); doll.dirty = true; } },
-    aim: (lo, la) => { lon = lo; lat = la; look(); },     // turn/tilt the view (QA turns around when a wall fills it)
+    notes: { list: () => notes.map(n => ({ id: n.id, x: n.x, y: n.y, z: n.z, text: n.text, photo: !!n.photo })), place: (x, y) => { const n = notePlace(x, y); return n && { x: n.x, y: n.y, z: n.z }; },
+             add: (text, photo) => { if (!noteEdit) return false; $('noteText').value = text; if (photo) { noteEdit.photo = photo; } return $('noteSave').click(), true; },
+             remove: id => { const k = notes.find(n => n.id === id); if (!k) return false; notes = notes.filter(n => n !== k); notesDirty(); notesSave(); return true; },
+             aimAt: id => { const nt = notes.find(n => n.id === id); if (!nt) return false; const w = mapToView(nt); lon = Math.atan2(w.x, -w.z) / D2R; lat = Math.atan2(w.y, Math.hypot(w.x, w.z)) / D2R; look(); notesDirty(); return true; },
+             screen: id => { const b = pinEls.get(id); if (!b || b.style.display !== 'block') return null; const m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(b.style.transform); return m ? [parseFloat(m[1]), parseFloat(m[2])] : null; },
+             visible: () => [...noteVis.entries()].filter(([, v]) => v).map(([id]) => id), pins: () => [...pinEls.values()].filter(b => b.style.display === 'block').length, mode: () => noteMode },
+        aim: (lo, la) => { lon = lo; lat = la; look(); },     // turn/tilt the view (QA turns around when a wall fills it)
+    rings: () => hotGroup.children.map(g => ({ to: g.userData.link.to, near: !!g.userData.link.near, lit: g === litRing, scale: g.scale.x, pos: g.position.toArray(), state: g.userData.state || '' })),
+    ringAt: (x, y) => { const g = ringAt(x, y); return g ? g.userData.link.to : null; },
+    mapLabels: () => (big.labels || []).map(b => b.slice()),
+    gl: () => ({ lost: gl.isContextLost(), guardLost: glGuard.lost, restores: glGuard.restores, fail: $('glfail').classList.contains('show'), draws: glDraws() }),
+    ringScreen: j => { const g = hotGroup.children.find(c => c.userData.link.to === j); if (!g) return null; const v = g.position.clone().project(camera); if (v.z > 1) return null; const r = el.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; },
     tapTarget: (x, y) => { const p = floorHit(x, y); const L = p && stopNear(p); return L && { to: L.to, dist: L.dist }; },   // where a tap here would go, and how far (map m) that stop is from the tapped spot
     floorPoint: () => {                                   // a screen point that is visible floor, or null
       const r = el.getBoundingClientRect();
@@ -885,8 +1708,8 @@
     },
   };
   $('load').remove();
-  try { if (!localStorage.getItem('st_seen')) { $('help').classList.add('show'); localStorage.setItem('st_seen', '1'); } }
-  catch (e) { $('help').classList.add('show'); }
+  setTimeout(glCheck, GL_BLACK_MS);                       // the first picture is up: in a few seconds, check the canvas really shows it
+  showHint();                                             // the help (?) is one key away; a wall of text on the first open is not a welcome
 })();
 </script>
 </body>

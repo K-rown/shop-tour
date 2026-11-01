@@ -35,13 +35,13 @@ class Walk:
 
     def range_map(self, sid):
         if sid not in self.rng:
-            self.rng[sid] = D.decode_range(imread(os.path.join(self.fr, "depth", f"eq_{sid}.png")))
+            self.rng[sid] = D.decode_range(imread(os.path.join(self.fr, os.environ.get("DEPTH_DIR", "depth"), f"eq_{sid}.png")))
         return self.rng[sid]
 
     def scene(self):
         if self._scene is None:
             import open3d as o3d
-            m = o3d.io.read_triangle_mesh(os.path.join(self.fr, "dollhouse", "mesh.ply"))
+            m = o3d.io.read_triangle_mesh(os.path.join(self.fr, "dollhouse", os.environ.get("MESH_NAME", "mesh") + ".ply"))
             self._scene = o3d.t.geometry.RaycastingScene(); self._scene.add_triangles(o3d.t.geometry.TriangleMesh.from_legacy(m))
         return self._scene
 
@@ -56,7 +56,7 @@ class Walk:
         a, e = math.radians(az), math.radians(el)
         d_pano = np.array([math.cos(e) * math.sin(a), math.sin(e), math.cos(e) * math.cos(a)])
         d_world = D.level_to_world(node["H"]) @ (D.rot_to_y(self.UP[i]) @ d_pano)
-        pos = np.array([node["x"], node["y"], node["cam_h"] or 2.0])
+        pos = np.array([node["x"], node["y"], (node["cam_h"] or 2.0) + float(node.get("z") or 0.0)])
         ray = o3d.core.Tensor([[*pos, *d_world]], dtype=o3d.core.Dtype.Float32)
         t = float(self.scene().cast_rays(ray)["t_hit"].numpy()[0])
         if not math.isfinite(t):
@@ -73,7 +73,7 @@ class Walk:
         a, e = math.radians(az), math.radians(el)
         d_pano = np.array([math.cos(e) * math.sin(a), math.sin(e), math.cos(e) * math.cos(a)])
         d_level = D.rot_to_y(self.UP[i]) @ d_pano
-        pos = np.array([node["x"], node["y"], node["cam_h"] or 2.0])
+        pos = np.array([node["x"], node["y"], (node["cam_h"] or 2.0) + float(node.get("z") or 0.0)])
         return pos + D.level_to_world(node["H"]) @ (d_level * rg), rg
 
 
@@ -84,6 +84,13 @@ def resolve(p):
         az, el = persp.pixel_to_azel(p["px"][0], p["px"][1], *p["view"])
         return p["stop"], az, el
     return p["stop"], p["az"], p["el"]
+
+
+def long_axis_theta(plan):
+    """The plan's axis along the building's LONG side (the plan's u axis can come out either way round: theta and theta + 90 describe the same rectangle)."""
+    th = float(plan["theta_deg"])
+    sz = plan.get("outer_size_m")
+    return th + 90.0 if sz and sz[0] < sz[1] else th
 
 
 def measure(w, item, theta_deg=0.0):
@@ -108,7 +115,7 @@ def main():
     w = Walk(a.walk, a.mode)
     print(f"measuring in: {'the dollhouse model (rays cast into the fused mesh)' if a.mode == 'mesh' else 'the single-stop depth maps'}")
     pj = os.path.join(w.fr, "dollhouse", "plan.json")
-    theta = json.load(open(pj))["theta_deg"] if os.path.exists(pj) else 0.0
+    theta = long_axis_theta(json.load(open(pj))) if os.path.exists(pj) else 0.0
     rows, meas = [], {}
     for k, item in picks.items():
         if k in truth:

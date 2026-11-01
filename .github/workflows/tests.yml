@@ -14,6 +14,8 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install (the unit tests need only NumPy and OpenCV; no footage, GPU or browser)
-        run: pip install numpy opencv-python-headless
+        run: pip install numpy scipy opencv-python-headless
       - name: Unit tests
         run: python qa/test_units.py
+      - name: The upload page and the setup scripts (standard library only)
+        run: python qa/test_app.py

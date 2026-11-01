@@ -37,17 +37,50 @@ def video_end(insv):
         return float("inf")
 
 
+@functools.lru_cache(maxsize=None)
+def has_cuda():
+    """True when this ffmpeg can decode on an NVIDIA card and keep the frames there (-hwaccel cuda)."""
+    try:
+        out = subprocess.run(["ffmpeg", "-hide_banner", "-hwaccels"], capture_output=True, text=True, timeout=30).stdout
+        return "cuda" in out.split()
+    except Exception:
+        return False
+
+
+def decode_args(use_cuda):
+    """ffmpeg input/filter pieces for the small gray scan. `-hwaccel auto` downloads EVERY decoded 3840x3840 frame to memory before the fps filter drops most of
+    them; on the card the frames stay put, fps picks the ones the scan wants, and only those are downloaded (same pictures bit for bit, about twice as fast)."""
+    if use_cuda:
+        return ["-hwaccel", "cuda", "-hwaccel_output_format", "cuda"], "hwdownload,format=nv12,"
+    return ["-hwaccel", "auto"], ""
+
+
 def frames(insv, fps, size, start=None, dur=None):
     """Yield (t, gray image size x 2*size) with both lenses side by side. Each lens is decoded by its own ffmpeg process (the hardware
     decoder handles two streams at once ~25% faster than one process doing both one after the other)."""
-    base = ["ffmpeg", "-v", "error", "-hwaccel", "auto"]
+    for use_cuda in ((True, False) if has_cuda() else (False,)):
+        got = 0
+        try:
+            for t, img in _frames(insv, fps, size, start, dur, use_cuda):
+                got += 1
+                yield t, img
+        except (OSError, ValueError):
+            if got or not use_cuda:
+                raise
+        if got or not use_cuda:
+            return                                               # (a scan that gave nothing on the card is tried once more the old way)
+
+
+def _frames(insv, fps, size, start, dur, use_cuda):
+    hw, down = decode_args(use_cuda)
+    base = ["ffmpeg", "-v", "error", *hw]
     if start is not None:
         base += ["-ss", f"{max(0.0, start):.3f}"]
     if dur is not None:
         base += ["-t", f"{dur:.3f}"]
     if is_equirect(insv):
         # an already-stitched 2:1 video: its left and right halves play the part of the two lenses (each is a square covering 180 degrees)
-        p = subprocess.Popen(base + ["-i", insv, "-vf", f"fps={fps},scale={2 * size}:{size},format=gray", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+        p = subprocess.Popen(base + ["-i", insv, "-vf", f"fps={fps},{down}scale={2 * size}:{size},format=gray", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
                              stdout=subprocess.PIPE)
         k = 0
         t0 = start or 0.0
@@ -63,7 +96,7 @@ def frames(insv, fps, size, start=None, dur=None):
                 p.kill()
             p.stdout.close(); p.wait()
         return
-    procs = [subprocess.Popen(base + ["-i", insv, "-map", f"0:v:{m}", "-vf", f"fps={fps},scale={size}:{size},format=gray",
+    procs = [subprocess.Popen(base + ["-i", insv, "-map", f"0:v:{m}", "-vf", f"fps={fps},{down}scale={size}:{size},format=gray",
                                       "-f", "rawvideo", "-pix_fmt", "gray", "-"], stdout=subprocess.PIPE) for m in (0, 1)]
     n = size * size
     k = 0

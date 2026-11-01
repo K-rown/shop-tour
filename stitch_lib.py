@@ -77,7 +77,7 @@ def build_maps(P, out_w=7680, feather_deg=14.0, rows=256):
         t = np.clip((THETA_MAX - th) / (THETA_MAX - lo), 0, 1)
         return t * t * (3 - 2 * t)
 
-    for r0 in range(0, out_h, rows):
+    def chunk(r0):
         r1 = min(out_h, r0 + rows)
         el = (90.0 - (np.arange(r0, r1) + 0.5) / out_h * 180.0).astype(np.float32)
         AZ, EL = np.meshgrid(az, el)
@@ -92,8 +92,28 @@ def build_maps(P, out_w=7680, feather_deg=14.0, rows=256):
         M["uA"][r0:r1], M["vA"][r0:r1], M["uF"][r0:r1], M["vF"][r0:r1] = uA, vA, uF, vF
         M["wA"][r0:r1], M["wF"][r0:r1] = wA / tot, wF / tot
         ov[r0:r1] = okA & okF
+
+    starts = list(range(0, out_h, rows))
+    n_th = map_threads()
+    if n_th > 1 and len(starts) > 1:                         # the chunks are independent rows: side by side they come out the same, bit for bit (numpy lets go of the GIL on arrays this size)
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=min(n_th, len(starts))) as ex:
+            list(ex.map(chunk, starts))
+    else:
+        for r0 in starts:
+            chunk(r0)
     M["ov"] = ov
     return M
+
+
+def map_threads():
+    """Chunks of the lens maps made at once (SHOP_TOUR_MAP_THREADS; default: the cores up to 8; 1 = one after the other)."""
+    import os
+    try:
+        n = int(os.environ.get("SHOP_TOUR_MAP_THREADS", "") or 0)
+    except ValueError:
+        n = 0
+    return n if n > 0 else min(8, os.cpu_count() or 1)
 
 
 def stitch_maps(imgA, imgF, M, gain=True):
