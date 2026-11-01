@@ -1,20 +1,12 @@
 # pip install -r requirements.txt
-# GPU: install the CUDA build of torch/torchvision first (https://pytorch.org, same versions as below); this file then keeps it.
-#
-# torch and torchvision are PINNED to the builds this engine's privacy verdicts were measured on (torch 2.14.1+cu130, torchvision 0.29.1+cu130,
-# Windows, RTX 3070 Ti). The privacy gate's person/face scores move slightly with the torch build: on the same walk, CUDA 12.8, CUDA 13.0 and the
-# CPU build differed by one or two held stops out of 25 (measured 2026-10-22). Pinning makes a stranger's verdict match the reference runs.
-torch==2.14.1
-torchvision==0.29.1
-#
-# Everything else is a lower bound; the versions the reference runs used are in the comments.
-numpy            # 2.2.6
-scipy            # 1.18.1
-opencv-python-headless   # 5.0.0.93
-pillow           # 11.2.1
-transformers>=4.56   # 5.20.1
-pycolmap>=4.1    # 4.2.1
-open3d           # 0.20.0
-scikit-image     # 0.26.0
-xatlas           # 0.0.11 (the dollhouse's UV atlas)
-moge @ git+https://github.com/microsoft/MoGe.git@74fbce054ebed49800de42d0ad0e83495065719a   # MoGe-2 (MIT), pinned to the commit the reference runs used (needs git on PATH); its weights download on the first build
+# For a GPU, install the CUDA build of torch/torchvision first (https://pytorch.org); this file then keeps it.
+numpy
+scipy
+opencv-python-headless
+pillow
+transformers>=4.56
+pycolmap>=4.1
+torch
+torchvision
+open3d
+scikit-image

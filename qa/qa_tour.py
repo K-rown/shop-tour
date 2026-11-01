@@ -61,7 +61,7 @@ def main():
         print(("PASS " if ok else "FAIL ") + name + (f"  ({detail})" if detail else ""), flush=True)
 
     hops_m = [float(np.hypot(N[k + 1]["x"] - N[k]["x"], N[k + 1]["y"] - N[k]["y"])) for k in range(len(N) - 1) if N[k]["x"] is not None and N[k + 1]["x"] is not None]
-    tap_limit = max(4.0, 2.5 * float(np.median(hops_m)) if hops_m else 4.0)     # a sparse tour (few stops far apart) has no stop near every spot
+    tap_limit = max(3.5, 2.5 * float(np.median(hops_m)) if hops_m else 3.5)     # a sparse tour (few stops far apart) has no stop near every spot
     extra = []                                              # nothing from an earlier build may stay in the folder (it would be published with the tour)
     for sub, key in (("panos", "fh"), ("panos_lo", "f"), ("panos_xs", "fx"), ("thumbs", "th")):
         have = set(os.listdir(os.path.join(a.tour, sub))) if os.path.isdir(os.path.join(a.tour, sub)) else set()
@@ -123,12 +123,9 @@ def main():
             check(f"{label}: load", not errs and info["n"] == len(N), f"build {info['b']}, {info['n']} stops, errors: {errs[:2]}")
             # M2: no on-screen arrow buttons, about 100 degrees across the screen by default, zoom and the arrow keys still work
             st0 = pg.evaluate("window.__tour.state()")
-            # 2026-10-29: the thumb cluster (previous / walk ahead / next) and the floor rings are the phone's way to move; each key is at least 44 px and clear of the bottom 52 px
-            cl = pg.evaluate("['bPrev','bGo','bNext'].map(id => { const e = document.getElementById(id); if (!e) return null; const r = e.getBoundingClientRect(); return [r.width, r.height, innerHeight - r.bottom]; })")
-            check(f"{label}: the thumb cluster is there, 44 px, clear of the bottom strip", all(c and c[0] >= 44 and c[1] >= 44 and c[2] >= 52 for c in cl), str(cl))
-            check(f"{label}: the floor rings point at the stops you can walk to", pg.evaluate("window.__tour.rings().length") >= 1, f"{pg.evaluate('window.__tour.rings().length')} rings at stop 1")
+            check(f"{label}: no on-screen arrow buttons", pg.evaluate("!document.getElementById('pad') && !document.getElementById('bFwd') && !document.getElementById('bLeft')"), "")
             hf = 2 * math.degrees(math.atan(math.tan(math.radians(st0["vfov"] / 2)) * st0["aspect"]))
-            check(f"{label}: default view is about 110 degrees across the screen", abs(st0["hfov"] - 110) < 1 and (abs(hf - 110) < 3 or st0["vfov"] >= 129), f"hfov setting {st0['hfov']}, vertical {st0['vfov']}, across the screen {hf:.0f}")
+            check(f"{label}: default view is about 100 degrees across the screen", abs(st0["hfov"] - 100) < 1 and (abs(hf - 100) < 3 or st0["vfov"] >= 129), f"hfov setting {st0['hfov']}, vertical {st0['vfov']}, across the screen {hf:.0f}")
             lon0 = pg.evaluate("window.__tour.state().lon")
             pg.keyboard.down("ArrowRight"); pg.wait_for_timeout(500); pg.keyboard.up("ArrowRight")
             check(f"{label}: the arrow keys still turn the view", abs(pg.evaluate("window.__tour.state().lon") - lon0) > 3, f"turned {pg.evaluate('window.__tour.state().lon') - lon0:.0f} deg")
@@ -137,7 +134,7 @@ def main():
             z = pg.evaluate("window.__tour.state().hfov")
             check(f"{label}: scrolling zooms in (and stays within limits)", 44.9 <= z < st0["hfov"], f"{st0['hfov']} -> {z}")
             wheel(3000); pg.wait_for_timeout(200)
-            check(f"{label}: zooming out stops at the limit", pg.evaluate("window.__tour.state().hfov") <= 110.01, f"{pg.evaluate('window.__tour.state().hfov')}")
+            check(f"{label}: zooming out stops at the limit", pg.evaluate("window.__tour.state().hfov") <= 105.01, f"{pg.evaluate('window.__tour.state().hfov')}")
             pg.evaluate("window.__tour.aim(window.__tour.state().lon, -12)")
             # M3: the help panel has the recording guide with its five pictures, readable at this width
             pg.evaluate("document.getElementById('help').classList.add('show'); document.getElementById('guide').open = true")
@@ -151,12 +148,7 @@ def main():
             check(f"{label}: the help panel closes with its button", not pg.evaluate("document.getElementById('help').classList.contains('show')"), "")
             # dollhouse, measuring, plan: dollhouse, measuring, plan
             pg.evaluate("window.__tour.go(0)"); pg.wait_for_function("!window.__tour.state().busy", timeout=30000)
-            mp = tj.get("measure_pct")
-            hidden = pg.evaluate("document.getElementById('bMeas').hidden")
-            if mp is not None and mp > 10:
-                check(f"{label}: Measure is hidden because its measured error is over 10 %", hidden, f"measured error {mp} %")
-            else:
-                check(f"{label}: the Measure button is there" + (f" and says its error (+/- {mp:.0f} %)" if mp is not None else ""), (not hidden) and (mp is None or "\u00b1" in pg.evaluate("document.getElementById('bMeas').textContent")), "")
+            check(f"{label}: the Measure button is there", pg.evaluate("!!document.getElementById('bMeas') && !document.getElementById('bMeas').hidden"), "")
             fp = pg.evaluate("window.__tour.floorPoint()")
             if fp:
                 fp2 = [fp[0] + min(80, vp["width"] * 0.15), fp[1] - 10]
@@ -164,39 +156,6 @@ def main():
                 check(f"{label}: measuring two floor points gives a plausible length", dm is not None and 0.05 < dm < 30, f"{dm}")
                 txt = pg.evaluate("document.getElementById('measure').textContent")
                 check(f"{label}: the length is shown in feet and inches", " ft " in txt and " in " in txt, txt)
-            if fp:                                                                         # pinned notes: place one on the floor spot, see its pin, keep it over a reload, delete it
-                pg.evaluate("window.__tour.go(0)"); pg.wait_for_function("!window.__tour.state().busy", timeout=30000)
-                lon_before = pg.evaluate("window.__tour.state().lon")
-                n0 = pg.evaluate("window.__tour.notes.list().length")
-                pos = pg.evaluate("([x, y]) => window.__tour.notes.place(x, y)", fp)
-                check(f"{label}: a note can be pinned on a surface", bool(pos) and abs(pos["z"]) < 0.6, f"{pos}")
-                if pos:
-                    pg.evaluate("window.__tour.notes.add('QA note: check the panel here')")
-                    pg.wait_for_timeout(400)
-                    lst = pg.evaluate("window.__tour.notes.list()")
-                    check(f"{label}: the note is kept and shown as a pin in the view", len(lst) == n0 + 1 and pg.evaluate("window.__tour.notes.pins()") >= 1, f"{len(lst)} notes, {pg.evaluate('window.__tour.notes.pins()')} pins")
-                    pg.reload(); pg.wait_for_function("window.__tour && !window.__tour.state().busy", timeout=60000); pg.wait_for_timeout(500)
-                    lst2 = pg.evaluate("window.__tour.notes.list()")
-                    check(f"{label}: the note is still there after a reload", any("QA note" in (n.get("text") or "") for n in lst2), f"{len(lst2)} notes")
-                    exported = pg.evaluate("window.__tour.notes.list().filter(n => n.text.includes('QA note')).length")
-                    # the same spot seen from the neighbouring stop: the pin is kept in map metres, so where it shows there must be the same real place
-                    if len(N) > 1:
-                        nid_ = pg.evaluate("window.__tour.notes.list().filter(n => n.text.includes('QA note'))[0].id")
-                        pg.evaluate("window.__tour.go(1)"); pg.wait_for_function("window.__tour.state().cur === 1 && !window.__tour.state().busy", timeout=30000); pg.wait_for_timeout(300)
-                        pg.evaluate("id => window.__tour.notes.aimAt(id)", nid_); pg.wait_for_timeout(400)
-                        sc = pg.evaluate("id => window.__tour.notes.screen(id)", nid_)
-                        if sc and 0 < sc[0] < vp["width"] and 0 < sc[1] < vp["height"] - 120:
-                            p2 = pg.evaluate("([x, y]) => window.__tour.notes.place(x, y - 6)", sc)
-                            pg.evaluate("document.getElementById('noteClose').click()")
-                            dd = math.hypot(p2["x"] - pos["x"], p2["y"] - pos["y"]) if p2 else 99
-                            check(f"{label}: from the next stop the pin sits on the same real spot", p2 is not None and dd < 1.2, f"{dd:.2f} m apart")
-                        else:
-                            hid = nid_ not in pg.evaluate("window.__tour.notes.visible()")
-                            check(f"{label}: from the next stop the note is hidden (behind something, or too far) rather than misplaced", hid, f"screen {sc}")
-                        pg.evaluate("window.__tour.go(0)"); pg.wait_for_function("window.__tour.state().cur === 0 && !window.__tour.state().busy", timeout=30000)
-                    pg.evaluate("window.__tour.notes.remove(window.__tour.notes.list().filter(n => n.text.includes('QA note')).map(n => n.id)[0])")
-                    check(f"{label}: a note can be deleted", pg.evaluate("window.__tour.notes.list().filter(n => n.text.includes('QA note')).length") == 0, "")
-                pg.evaluate(f"window.__tour.aim({lon_before}, -12)")                      # the rest of the run looks the same way as it did before this test
             if tj.get("dollhouse"):
                 check(f"{label}: the Dollhouse button is shown", pg.evaluate("!document.getElementById('bDoll').hidden"), "")
                 pg.click("#bDoll")

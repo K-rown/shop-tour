@@ -1,6 +1,6 @@
 """A/B for the patch under the camera: how visible is its outline? (nadir.FILL_MODE blur vs harmonic)
 
-Usage: python qa/nadir_seam.py --walk D:/walks/place/2026-01-01 [--montage D:/somewhere/montage.png --stops 3,10,15,20] [--json qa/nadir_seam.json]
+Usage: python qa/nadir_seam.py --walk D:/walks/example/walk1 [--montage D:/somewhere/montage.png --stops 3,10,15,20] [--json qa/nadir_seam.json]
 Uses the walk's frames (stitched panoramas + the per-stop person/floor masks). Prints, per stop, the seam score (mean LAB colour
 difference between a thin band inside the patch and one outside it; lower is better), and how much finer detail the patch holds than the floor
 around it (must stay at the floor's own grain: the fill must never invent detail). The montage shows straight-down views: before | blur | harmonic.

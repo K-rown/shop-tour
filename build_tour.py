@@ -135,84 +135,6 @@ def prune(out, keep):
     return n
 
 
-def walked_path(frames, pts, MX, MY, ZS, CAMH, placed, window=40.0, step=0.2, log=print):
-    """THE PATH HE WALKED (2026-10-30 — a tester, on a road walk's tour: "you don't show the path that I walked… maybe that would be a useful
-    toggle"). vio_map.py's 1 Hz chain (frames/vio/poses.npz) has a camera position for every second of the walk; the tour has map positions for
-    the stops only. Each chain position is laid onto the map the way map_stops.vio_place lays a stop: a similarity fit (Umeyama, rotation +
-    scale + shift) over the placed stops within +-`window` seconds of it that are in both (the chain drifts in scale, so the fit is local; at
-    least three, the whole walk otherwise), in three dimensions (map x, y and the camera's height over the walk's zero). The map's x and y of
-    every fitted position, in time order, thinned to `step` metres. None when there is no chain or too few stops to fit — the viewer then draws
-    the stop chain as before. A drawing on the minimap, never a place one can walk to."""
-    vio = os.path.join(frames, "vio", "poses.npz")
-    if not os.path.exists(vio):
-        return None
-    try:
-        V = np.load(vio)
-        names = [str(n) for n in V["names"]]; Cv = np.asarray(V["C"], float); T = np.asarray(V["t"], float)
-    except Exception as e:  # noqa: BLE001 — a bad chain is no path
-        log(f"motion track unreadable ({e}): no walked path"); return None
-    at = {nm[2:-4]: i for i, nm in enumerate(names) if nm.startswith("s_")}
-    ks = [k for k in placed if pts[k]["id"] in at]
-    if len(ks) < 3:
-        return None
-    A_all = np.array([Cv[at[pts[k]["id"]]] for k in ks])
-    B_all = np.array([[MX[k], MY[k], float(ZS[k] or 0.0) + float(CAMH[k] or 2.0)] for k in ks])
-    TS = np.array([float(pts[k]["timestamp"]) for k in ks])
-
-    def fit(sel):
-        A, B = A_all[sel], B_all[sel]
-        ma, mb = A.mean(0), B.mean(0); A0, B0 = A - ma, B - mb
-        H = B0.T @ A0 / len(A)
-        U, S, Vt = np.linalg.svd(H)
-        D = np.eye(3)
-        if np.linalg.det(U @ Vt) < 0:
-            D[2, 2] = -1
-        Q = U @ D @ Vt
-        var = (A0 ** 2).sum() / len(A)
-        s = float((S * np.diag(D)).sum() / var) if var > 1e-12 else 0.0
-        t = mb - s * Q @ ma
-        res = float(np.sqrt(((B - (s * (Q @ A.T).T + t)) ** 2).sum(1).mean())) if s > 0 else 1e9
-        flat = S[0] > 0 and S[1] / S[0] < 0.02                 # the stops lie on one line: the fit may swing about it
-        return s, Q, t, res, flat
-
-    whole = fit(np.arange(len(ks)))
-    if not (np.isfinite(whole[0]) and whole[0] > 0):
-        return None
-    Qw = whole[1]
-
-    def fit_scale(sel):
-        """scale + shift only, the whole walk's rotation held: for a stretch whose stops lie on one line (a corridor, a road), where a free rotation would swing"""
-        A = A_all[sel] @ Qw.T; B = B_all[sel]
-        ma, mb = A.mean(0), B.mean(0); A0, B0 = A - ma, B - mb
-        den = (A0 ** 2).sum()
-        s = float((A0 * B0).sum() / den) if den > 1e-12 else 0.0
-        t = mb - s * ma
-        res = float(np.sqrt(((B - (s * A + t)) ** 2).sum(1).mean())) if s > 0 else 1e9
-        return s, Qw, t, res, False
-
-    good = lambda f: np.isfinite(f[0]) and f[0] > 0 and not f[4]
-    out = []; last = None; res = []
-    K = min(len(ks), 5)                                                    # the chain drifts in scale: each position is laid by its nearest few stops
-    for i in np.argsort(T):
-        near = np.argsort(np.abs(TS - T[i]))[:K]
-        f = fit(near) if K >= 3 else whole
-        if not good(f):
-            f = fit_scale(near)                                            # on one line a free rotation may swing: the walk's rotation, this stretch's scale
-        if not good(f) or f[3] > max(1.5, whole[3]):
-            f = whole
-        res.append(f[3])
-        s, Q, t = f[0], f[1], f[2]
-        p = s * Q @ Cv[i] + t
-        if not np.all(np.isfinite(p)):
-            continue
-        if last is None or math.hypot(p[0] - last[0], p[1] - last[1]) >= step:
-            out.append([round(float(p[0]), 2), round(float(p[1]), 2)]); last = p
-    if len(out) < 2:
-        return None
-    log(f"walked path: {len(out)} points from {len(T)} chain positions, fit over {len(ks)} stops (residual {float(np.median(res)):.2f} m local, {whole[3]:.2f} m whole walk)")
-    return out
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--frames", default="frames")       # relative to where it runs: tour.py runs it inside the walk's work folder
@@ -222,7 +144,6 @@ def main():
     ap.add_argument("--tiles", choices=["on", "off"], default="on", help="also write the full-detail picture as 18 tiles, so phones load only what they look at")
     ap.add_argument("--nadir", type=float, default=0.16, help="height of the dark cap (only with --nadir-mode cap)")
     ap.add_argument("--nadir-mode", choices=["fill", "cap", "none"], default="none", help="old fills for the bottom of the picture; the capturer step (remove_capturer.py) has already rebuilt it, so the default is none")
-    ap.add_argument("--early", action="store_true", help="the first tour, made before the sphere depth, the registration and the dollhouse: tour.json says partial (build_early.py; the viewer shows no dollhouse or plan)")
     ap.add_argument("--title", default="Walkthrough", help="name shown in the viewer and the browser tab")
     ap.add_argument("--expose", choices=["on", "off"], default="on", help="match brightness/colour between neighbouring stops (exposure.py)")
     a = ap.parse_args()
@@ -241,11 +162,6 @@ def main():
     KEEP = [i for i, p in enumerate(pts) if os.path.exists(os.path.join(safe_dir, p["filename"]))
             and not (PV.get(p["id"], {"held": True})["held"] and not PV.get(p["id"], {}).get("kept"))]
     if not KEEP:
-        try:                                                  # no tour, but the review is waiting: a manifest listing the held stops lets an app offer it
-            import manifest
-            manifest.write_all_held(a.frames, a.out, a.title)
-        except Exception as e:
-            print(f"note: manifest.json was not written ({e})")
         sys.exit(f"every stop was held back by the privacy check: nothing to build. Open {os.path.join(a.frames, 'review', 'review.html')}.")
     NEWIDX = {i: n for n, i in enumerate(KEEP)}
     held = [pts[i]["id"] for i in range(len(pts)) if i not in NEWIDX]
@@ -258,37 +174,22 @@ def main():
     pf = os.path.join(a.frames, "poses.json")
     if os.path.exists(pf):          # one shared map from map_stops.py: every visible stop, exact minimap
         P = json.load(open(pf))
-        CAMH = [None] * len(pts); ZS = [0.0] * len(pts); CHK = [None] * len(pts)
+        CAMH = [None] * len(pts)
         for k, nd in enumerate(P["nodes"]):
             if nd["x"] is None:
                 continue
             MX[k], MY[k], MH[k] = nd["x"], nd["y"], nd["H"]
-            CHK[k] = nd.get("check")                                                    # how well its heading agrees with its own pictures (heading_check.py)
-            CAMH[k] = nd.get("cam_h"); ZS[k] = round(float(nd.get("z") or 0.0), 3)        # the stop's ground above the walk's zero (register_stops.py)
+            CAMH[k] = nd.get("cam_h")
             LINKS[k] = sorted(nd["links"], key=lambda L: L["d"])
         print("using poses.json (shared map):", sum(len(L) for L in LINKS), "rings")
-        # AN UNPLACED STOP IS NOT A PLACE IN THE WALK (2026-10-28, a road walk the map placed 20 of 25 stops of): a stop with no map
-        # position used to take the per-hop chain's guess — a line of fake places the visitor glides to — so it is left out of the tour
-        # and said in words; the manifest lists the stops that ARE in it
-        unplaced = [i for i in KEEP if P["nodes"][i].get("x") is None]
-        if unplaced:
-            KEEP = [i for i in KEEP if i not in set(unplaced)]
-            NEWIDX = {i: n for n, i in enumerate(KEEP)}
-            print(f"NOT ON THE MAP (left out of the tour): {', '.join(pts[i]['id'] for i in unplaced)}")
-            if not KEEP:
-                sys.exit("no stop could be placed on the map: nothing to build. Record again with a stop every 1.5-2 m.")
         DEPTH = {}
         os.makedirs(os.path.join(a.out, "depth"), exist_ok=True)
         for nd in P["nodes"]:
-            src = os.path.join(a.frames, "depth_sphere", f"eq_{nd['id']}.png")            # the full-sphere metric depth (depth_sphere.py) when there is one
-            if not os.path.exists(src):
-                src = os.path.join(a.frames, "depth_mvs", f"eq_{nd['id']}.png")           # else the multi-view anchored depth (mvs.py + depth_align.py)
-            if not os.path.exists(src):
-                src = os.path.join(a.frames, "depth", f"eq_{nd['id']}.png")
+            src = os.path.join(a.frames, "depth", f"eq_{nd['id']}.png")
             if os.path.exists(src):
                 shutil.copy(src, os.path.join(a.out, "depth", nd["id"] + ".png")); DEPTH[nd["id"]] = "depth/" + nd["id"] + ".png"
     else:
-        DEPTH = {}; CAMH = [None] * len(pts); ZS = [0.0] * len(pts); CHK = [None] * len(pts)
+        DEPTH = {}; CAMH = [None] * len(pts)
         print("no poses.json: using per-hop links (run map_stops.py for the full map)")
     upf = os.path.join(a.frames, "up.json")
     UPS = json.load(open(upf)) if os.path.exists(upf) else [[0, 1, 0]] * len(pts)
@@ -339,9 +240,7 @@ def main():
             "x": round(MX[i], 2), "y": round(MY[i], 2), "H": round(MH[i], 1),
             "f": "panos_lo/" + p["filename"] + VER, "fx": "panos_xs/" + p["filename"] + VER, "fh": "panos/" + p["filename"] + VER, "th": "thumbs/" + p["filename"] + VER,
             **({"tl": "tiles/" + p["id"] + "_{r}{c}.jpg" + VER} if a.tiles == "on" else {}),
-            **({"hc": CHK[i]} if CHK[i] else {}),
             "up": UPS[i], "links": [dict(L, to=NEWIDX[L["to"]]) for L in LINKS[i] if L["to"] in NEWIDX], "dm": (DEPTH[p["id"]] + VER) if DEPTH.get(p["id"]) else None, "h": CAMH[i],
-            "z": ZS[i],
         }
         if GAINS is not None:
             node["gain"] = [round(float(g), 3) for g in GAINS[i][::-1]]       # R, G, B
@@ -358,7 +257,6 @@ def main():
         "convention": "per_pano_local",
         "approximate_map": True,
         "nodes": nodes,
-        **({"partial": True} if a.early else {}),
         **({"tiles": {"cols": TILE_COLS, "rows": TILE_ROWS, "pad": TILE_PAD, "w": min(a.hi, 8192)}} if a.tiles == "on" else {}),
     }
     KP = [pts[i] for i in KEEP]
@@ -367,28 +265,9 @@ def main():
                          "depth": {n["dm"].split("?")[0].split("/")[-1] for n in nodes if n.get("dm")}})
     if gone:
         print(f"removed {gone} pictures of an earlier build from {a.out}")
-    if os.path.exists(pf):
-        placed = [k for k, nd in enumerate(P["nodes"]) if nd.get("x") is not None]
-        path = walked_path(a.frames, pts, MX, MY, ZS, CAMH, placed)
-        if path:
-            meta["path"] = path                                          # the walk he took, in map metres, for the minimap (never a place to walk to)
     for flag, fn in (("dollhouse", "dollhouse.json"), ("plan", "plan.svg")):          # extras made by later steps (dollhouse.py, floorplan.py) stay linked after a rebuild
         if os.path.exists(os.path.join(a.out, fn)):
             meta[flag] = True
-    acc = None                                                          # how far the Measure button can be trusted: THIS walk's own grading against tape (qa/scoreboard.py), never another walk's; none = not checked
-    for cand in (os.path.join(a.frames, "accuracy.json"),):
-        if os.path.exists(cand):
-            try:
-                acc = float(json.load(open(cand))["measure_pct"]); break
-            except (ValueError, KeyError, TypeError):
-                pass
-    if acc is not None:
-        meta["measure_pct"] = round(acc, 1)                              # the viewer shows "+/- x %" and hides Measure above 10 %
-    nf = os.path.join(os.path.dirname(os.path.abspath(a.frames)), "notes.json")           # the notes pinned in an earlier visit travel with the tour
-    if os.path.exists(nf):
-        shutil.copy(nf, os.path.join(a.out, "notes.json"))
-    if os.path.exists(os.path.join(a.out, "notes.json")):
-        meta["notes"] = True
     json.dump(meta, open(os.path.join(a.out, "tour.json"), "w"), separators=(",", ":"))      # compact: the phone downloads this first
     shutil.copy(os.path.join(HERE, "viewer", "index.html"), os.path.join(a.out, "index.html"))
     ensure_three(a.out, a.frames)

@@ -130,116 +130,11 @@ def floor_fraction(mask, L, centre, radius=0.35, k=24):
     return hits / len(pts)
 
 
-def sparse_floor(rec, up, cams, min_points=1500):
-    """Where the floor is, from the sparse map itself (no depth model): the height (along `up`, in COLMAP units) at which the cloud of triangulated points starts. A floor has speckle
-    and clutter on it, so the point density below the camera jumps from nothing to a plateau at the floor and stays there; the first two bins that reach half of the plateau mark it.
-    The depth model's own floor (the densest layer in its ranges) picked a layer of clutter half a metre above the real floor on the first test walk, which lifted the floor plane and
-    made everything above it 0.5 m too short. None if there are too few points or no clear edge."""
-    P = np.array([p.xyz for p in rec.points3D.values() if p.track.length() >= 3 and p.error < 1.0])
-    return sparse_floor_pts(P, up, cams, min_points)
-
-
-def sparse_floor_pts(P, up, cams, min_points=1500):
-    """sparse_floor on an array of points (N, 3)."""
-    up = np.asarray(up, float); up = up / np.linalg.norm(up)
-    if len(P) < min_points or not cams:
-        return None
-    h = P @ up
-    hc = float(np.median([c @ up for c in cams.values()]))
-    below = h[h < hc]
-    if len(below) < min_points // 2:
-        return None
-    lo = float(np.percentile(below, 0.2)); width = (hc - lo) / 70.0
-    cnt, edges = np.histogram(below, bins=np.arange(lo, hc, width))
-    plateau = float(np.median(cnt[len(cnt) // 4: 3 * len(cnt) // 4 + 1]))
-    if plateau < 5:
-        return None
-    for k in range(len(cnt) - 1):
-        if cnt[k] >= 0.5 * plateau and cnt[k + 1] >= 0.5 * plateau:
-            return float(edges[k])
-    return None
-
-
-LAST_CEILING = {}        # stop index -> metres from the floor edge to the top of the dense map's point cloud near that stop (set by vio_cam_heights; a rough roof height, for scale_priors.py)
-
-
-def vio_cam_heights(frames, scale, cams_stops, ups, ids, log=print, window=40.0):
-    """Each stop's height above the floor in metres, from the dense 1 Hz map of vio_map.py (55,000 points instead of the stops-only map's 2,500). It is done LOCALLY, per stop, in a window of
-    +-`window` seconds of the walk: the dense map is a chain of pictures and drifts in scale over a long walk (walk 2: the stop map and the dense map agree to 3 % over the first minute and to
-    74 % over the whole walk), so the floor is found from the points that pictures of that stretch saw (sparse_floor), up is the pictures' own up carried into the map, and metres per map unit come
-    from the stops of that stretch that are in both maps. {stop index: metres}, for the stops where that worked, or None."""
-    vio = os.path.join(frames, "vio")
-    if not os.path.exists(os.path.join(vio, "poses.npz")) or not os.path.isdir(os.path.join(vio, "sparse")):
-        return None
-    try:
-        V = np.load(os.path.join(vio, "poses.npz"))
-        tname = {str(n): float(t_) for n, t_ in zip(V["names"], V["t"])}
-        models = [os.path.join(vio, "sparse", d) for d in sorted(os.listdir(os.path.join(vio, "sparse")))]
-        rv = max([pycolmap.Reconstruction(m) for m in models], key=lambda r: r.num_reg_images())
-        Cv, Rv, tim = {}, {}, {}
-        for iid, im in rv.images.items():
-            T = im.cam_from_world() if callable(im.cam_from_world) else im.cam_from_world
-            R = T.rotation.matrix(); Cv[im.name] = -R.T @ T.translation; Rv[im.name] = R; tim[iid] = tname.get(im.name)
-        Fm = np.diag([1.0, -1.0, 1.0])
-        stop_names = {k: "s_" + f"{ids[k]}.jpg" for k in cams_stops}
-        have = [k for k in cams_stops if stop_names[k] in Cv and tname.get(stop_names[k]) is not None]
-        if len(have) < 4:
-            return None
-        # the points once: position and the median time of the pictures that saw them
-        P, Pt = [], []
-        for p3 in rv.points3D.values():
-            if p3.track.length() >= 3 and p3.error < 1.0:
-                ts = [tim[e.image_id] for e in p3.track.elements if tim.get(e.image_id) is not None]
-                if ts:
-                    P.append(p3.xyz); Pt.append(float(np.median(ts)))
-        P = np.array(P); Pt = np.array(Pt)
-        names_t = {n: tname[n] for n in Cv if n in tname}
-        out, good = {}, set()
-        for k in have:
-            ts_ = tname[stop_names[k]]
-            near = [i for i in have if abs(tname[stop_names[i]] - ts_) <= window]
-            if len(near) < 4:
-                continue
-            up = np.mean([Rv[stop_names[i]].T @ (Fm @ np.asarray(ups[i], float)) for i in near], axis=0); up /= np.linalg.norm(up)
-            ratios = [np.linalg.norm(Cv[stop_names[i]] - Cv[stop_names[j]]) / np.linalg.norm(cams_stops[i] - cams_stops[j])
-                      for n_, i in enumerate(near) for j in near[n_ + 1:] if np.linalg.norm(cams_stops[i] - cams_stops[j]) > 1e-6]
-            k_unit = float(np.median(ratios)); spread = 1.4826 * float(np.median(np.abs(np.array(ratios) - k_unit))) / k_unit
-            m = np.abs(Pt - ts_) <= window
-            cams_w = {n: Cv[n] for n, t_ in names_t.items() if abs(t_ - ts_) <= window}
-            floor = sparse_floor_pts(P[m], up, cams_w, min_points=600) if m.sum() > 600 else None
-            if floor is None or spread > 0.15:
-                continue
-            out[k] = float((Cv[stop_names[k]] @ up - floor) * scale / k_unit)
-            hh = P[m] @ up
-            LAST_CEILING[k] = float((np.percentile(hh[hh > Cv[stop_names[k]] @ up], 98) - floor) * scale / k_unit) if (hh > Cv[stop_names[k]] @ up).sum() > 100 else None
-            if spread <= 0.07:
-                good.add(k)                                                # the two maps agree to 7 % here: the stretches whose height is believed
-        if len(out) < max(3, len(have) // 2):
-            log(f"vio map: a clear floor edge and agreement with the stop map in only {len(out)} of {len(have)} stretches: not used for the camera height")
-            return None
-        vals = [out[k] for k in good] if len(good) >= 3 else list(out.values())
-        med = float(np.median(vals))
-        log(f"camera height from the dense map's floor edge (local, +-{window:.0f} s): {len(out)} of {len(have)} stops had an edge, {len(good)} where the two maps agree to 7 %; the stick height used {med:.2f} m "
-            f"(these stretches: {min(vals):.2f}-{max(vals):.2f}; all: {min(out.values()):.2f}-{max(out.values()):.2f})")
-        for k in have:                                                   # the stick stays at about one height: stretches where the maps do not agree (or have no edge) get the median of those that do
-            if len(good) >= 3 and k not in good:
-                out[k] = med
-            else:
-                out.setdefault(k, med)
-        return out
-    except Exception as e:                                             # never let the experiment-grade estimate break the build
-        log(f"vio map not usable for the camera height ({str(e)[:100]})")
-        return None
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--frames", default="frames")
     ap.add_argument("--sparse", default=None, help="COLMAP model folder (default: frames/colmap/best, the model map_stops.py chose)")
     ap.add_argument("--occ", type=float, default=0.85, help="hide a ring if depth < this fraction of its distance")
-    ap.add_argument("--prior-range", type=float, nargs=2, default=None, help="experiment, off by default: when the camera height has to come from the depth model's floor layer, a height outside this range (m: a person holding a stick) is moved to its nearest end. On walk 2 (1.45 m found, 1.8 used) it cut the door and ceiling errors by a third but moved the median error from 27.1 to 28.6 %, so it is not applied")
-    ap.add_argument("--depth-floor", action="store_true", help="take the camera height from the depth model's floor layer (the old way) instead of the sparse map's floor edge")
-    ap.add_argument("--cam-h", type=float, default=None, help="experiment: use this camera height above the floor (map metres) for every stop instead of the one found from the depth")
     a = ap.parse_args()
     src = os.path.join(a.frames, "poses_map.json")              # always start from the untouched map, so reruns don't slide rings twice
     poses = json.load(open(src if os.path.exists(src) else os.path.join(a.frames, "poses.json")))
@@ -250,18 +145,16 @@ def main():
     sparse = a.sparse or (os.path.join(a.frames, "colmap", "best") if os.path.isdir(os.path.join(a.frames, "colmap", "best"))
                           else os.path.join(a.frames, "colmap", "sparse", "0"))
     rec = pycolmap.Reconstruction(sparse)
-    # a stop the motion track placed (map_stops.py vio_place, "by": "vio") has no COLMAP camera and no map points: it is not counted against the model
-    placed = sum(1 for nd in poses["nodes"] if nd.get("x") is not None and nd.get("by") != "vio")
+    placed = sum(1 for nd in poses["nodes"] if nd.get("x") is not None)
     if rec.num_reg_images() < placed:
         raise SystemExit(f"{sparse} has {rec.num_reg_images()} registered images but the map placed {placed} stops: wrong COLMAP model; rerun map_stops.py")
     ids = [nd["id"] for nd in poses["nodes"]]
-    stats, per_stop, all_fits, cams = [], {}, [], {}
+    stats, per_stop, all_fits = [], {}, []
     for im in rec.images.values():
         k = int(os.path.splitext(im.name)[0]) - 1
         sid = ids[k]
         T = im.cam_from_world() if callable(im.cam_from_world) else im.cam_from_world
         R = T.rotation.matrix(); C = -R.T @ T.translation
-        cams[k] = C
         cam = rec.cameras[im.camera_id]
         uv, X = [], []
         for p in im.points2D:
@@ -328,34 +221,12 @@ def main():
         per_stop[k] = (peak, sharp, depth_views, ranges, fits, L)
     # the stick stays at about one height for the whole walk: trust a stop's own floor only near the walk's median
     med_h = float(np.median([v[0] for v in per_stop.values() if v[1] > 2.5] or [v[0] for v in per_stop.values()]))
-    print(f"camera height (median over the walk, from the depth model's floor layer): {med_h:.2f} map-metres")
-    vio_h = None if a.depth_floor else vio_cam_heights(a.frames, scale, cams, ups, ids)
-    if vio_h is None:
-        print(f"using the depth model's floor layer for the camera height ({med_h:.2f} m)")
-    else:
-        print(f"(the depth model's floor layer says {med_h:.2f} m)")
-    for node in poses["nodes"]:                    # a placed stop the rings could not measure keeps the walk's median height (mvs and the dollhouse read it)
-        if node.get("x") is not None and node.get("cam_h") is None:
-            node["cam_h"] = round(med_h, 2)
-    for k, node in enumerate(poses["nodes"]):      # a stop placed by the motion track has no depth of its own: its rings stand at the walk's height, shown (2026-10-30)
-        if node.get("x") is None or k in per_stop:
-            continue
-        for Lk in node["links"]:
-            Lk["el"] = round(float(np.degrees(np.arctan2(node["cam_h"], max(Lk["d"], 0.3)))), 1)
-            Lk.setdefault("occ", False); Lk.setdefault("floor", 1.0)
+    print(f"camera height (median over the walk): {med_h:.2f} map-metres")
     for k, (peak, sharp, depth_views, ranges, fits, L) in sorted(per_stop.items()):
         sid = ids[k]
         cam_h = peak if (sharp > 2.5 and abs(peak - med_h) < 0.3) else med_h
-        if vio_h is not None and k in vio_h:
-            cam_h = vio_h[k]                                                                    # this stop's own height above the floor, in metres
-        elif a.prior_range:
-            cam_h = float(min(max(cam_h, a.prior_range[0]), a.prior_range[1]))                  # a soft physical prior: the depth model's floor layer is not trusted outside what a person can hold
-        if a.cam_h:
-            cam_h = a.cam_h
         node = poses["nodes"][k]
         node["cam_h"] = round(cam_h, 2)
-        if LAST_CEILING.get(k):
-            node["roof_m"] = round(LAST_CEILING[k], 2)
         fpaths = [os.path.join(a.frames, "depth", f"{sid}_f{vi}.png") for vi in range(len(views))]
         fm = [cv2.imread(p, cv2.IMREAD_GRAYSCALE) for p in fpaths] if all(os.path.exists(p) for p in fpaths) else None
         fmask, eqd = write_depth_png(os.path.join(a.frames, "depth", f"eq_{sid}.png"), ranges, views, n, cam_h, L, fmasks=fm)

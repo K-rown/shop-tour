@@ -8,7 +8,6 @@ Mask (find_mask):
   the union of both, plus his shadow (darker floor touching the mask), dilated slightly.
 Fill (fill_patch): see that function. Pure numpy / OpenCV / torch; every model is Apache-2.0 or MIT.
 """
-import functools
 import numpy as np
 import cv2
 
@@ -38,69 +37,17 @@ def pano_uv(r, h, w):
     return ((az + np.pi) / (2 * np.pi) * w - 0.5).astype(np.float32), ((np.pi / 2 - el) / np.pi * h - 0.5).astype(np.float32)
 
 
-@functools.lru_cache(maxsize=16)
 def view_dirs(n=VIEW_N, fov=VIEW_FOV):
-    """Level-frame ray of every pixel of the straight-down view (x right, y up, z forward), image up = forward. Also the focal length in pixels.
-    (Worked out once per size: it is the same for every stop; do not change what it returns.)"""
+    """Level-frame ray of every pixel of the straight-down view (x right, y up, z forward), image up = forward. Also the focal length in pixels."""
     f = n / 2 / np.tan(np.radians(fov) / 2)
     c, r = np.meshgrid(np.arange(n) + 0.5, np.arange(n) + 0.5)
     d = np.stack([(c - n / 2) / f, -np.ones_like(c), (n / 2 - r) / f], -1)
     return d / np.linalg.norm(d, axis=-1, keepdims=True), f
 
 
-_GPU_BROKEN = [False]            # a card call that failed (out of memory: the card is shared with the other steps): this process does the rest on the CPU, with the same numbers
-
-
-def _gpu_failed(what, e):
-    if not _GPU_BROKEN[0]:
-        import sys
-        print(f"capturer: the video card could not do {what} ({type(e).__name__}); doing it on the CPU from here on", file=sys.stderr, flush=True)
-    _GPU_BROKEN[0] = True
-
-
-def _gpu_maps_wanted():
-    """The pixel maps of a levelled view are worked out on the video card when this process already has one in use (torch loaded and CUDA started: the chain's
-    process, the checks) - the same float64 arithmetic as pano_uv (SHOP_TOUR_GPU_MAPS=0 uses numpy). They took 0.2 s each on the CPU and a stop needs several."""
-    import os, sys
-    if _GPU_BROKEN[0] or os.environ.get("SHOP_TOUR_GPU_MAPS", "").strip().lower() in ("0", "false", "no", "off"):
-        return False
-    t = sys.modules.get("torch")
-    try:
-        return bool(t is not None and t.cuda.is_available() and t.cuda.is_initialized())
-    except Exception:
-        return False
-
-
-@functools.lru_cache(maxsize=4)
-def _dirs_gpu(n, fov):
-    import torch
-    return torch.from_numpy(np.ascontiguousarray(view_dirs(n, fov)[0])).cuda()
-
-
-def pano_uv_gpu(r, h, w):
-    """pano_uv for a torch float64 tensor of rays on the card: the same formulas in the same order; returns two float32 numpy maps."""
-    import torch
-    n = torch.sqrt((r * r).sum(-1))
-    az = torch.atan2(r[..., 0], r[..., 2]); el = torch.asin(torch.clamp(r[..., 1] / n, -1, 1))
-    u = ((az + np.pi) / (2 * np.pi) * w - 0.5).to(torch.float32); v = ((np.pi / 2 - el) / np.pi * h - 0.5).to(torch.float32)
-    return u.cpu().numpy(), v.cpu().numpy()
-
-
-@functools.lru_cache(maxsize=12)
-def _level_maps(upkey, n, fov, h, w):
-    if _gpu_maps_wanted():
-        try:
-            import torch
-            R = torch.from_numpy(rot_to_y(upkey)).cuda()
-            return pano_uv_gpu(_dirs_gpu(n, fov) @ R, h, w)
-        except Exception as e:
-            _gpu_failed("a pixel map", e)
-    d, _ = view_dirs(n, fov)
-    return pano_uv(d @ rot_to_y(upkey), h, w)
-
-
 def level_view(pano, up, n=VIEW_N, fov=VIEW_FOV):
-    u, v = _level_maps(tuple(float(x) for x in up), n, fov, *pano.shape[:2])        # (the pixel maps of a stop are asked for again and again: by the mask, the gate and the margin)
+    d, _ = view_dirs(n, fov)
+    u, v = pano_uv(d @ rot_to_y(up), *pano.shape[:2])
     return cv2.remap(pano, u, v, cv2.INTER_AREA if pano.shape[1] > 4 * n else cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
 
 
@@ -130,30 +77,6 @@ class Models:
         self.torch = torch; self.dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.dp = AutoImageProcessor.from_pretrained(DA_ID); self.dm = AutoModelForDepthEstimation.from_pretrained(DA_ID).to(self.dev).eval()
         self.sp = Sam2Processor.from_pretrained(SAM_ID); self.sm = Sam2Model.from_pretrained(SAM_ID).to(self.dev).eval()
-        self._emb = (None, None, None)
-
-    def _embed(self, bgr):
-        """SAM 2's image embedding of a picture, worked out once: every prompt asked about the same picture (the ~60 points of the search, the extra
-        prompts that follow it) shares it. Returns (embeddings, original size)."""
-        import hashlib
-        t = self.torch
-        key = hashlib.blake2b(np.ascontiguousarray(bgr).data, digest_size=16).digest() + repr(bgr.shape).encode()
-        if self._emb[0] != key:
-            inp = self.sp(images=cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB), return_tensors="pt")
-            with t.no_grad():
-                emb = self.sm.get_image_embeddings(inp["pixel_values"].to(self.dev))
-            self._emb = (key, emb, inp["original_sizes"])
-        return self._emb[1], self._emb[2]
-
-    def _decode(self, bgr, points, labels):
-        """SAM 2's masks for point prompts given as [object][point] (points = [[[x, y], ...], ...]); returns (masks (objects, 3, H, W) bool, scores (objects, 3))."""
-        t = self.torch
-        emb, sizes = self._embed(bgr)
-        inp = self.sp(original_sizes=sizes, input_points=points, input_labels=labels, return_tensors="pt").to(self.dev)
-        with t.no_grad():
-            o = self.sm(image_embeddings=emb, input_points=inp["input_points"], input_labels=inp["input_labels"], multimask_output=True)
-            m = t.nn.functional.interpolate(o.pred_masks[0], tuple(int(v) for v in sizes[0].tolist()), mode="bilinear", align_corners=False) > 0
-        return m.cpu().numpy(), o.iou_scores[0].cpu().numpy()
 
     def disparity(self, bgr):
         from PIL import Image
@@ -165,110 +88,31 @@ class Models:
 
     def segment(self, bgr, points):
         """SAM 2 mask for positive point prompts [(x, y), ...] given together; the highest-scoring of its three candidates."""
-        m, sc = self._decode(bgr, [[[list(map(float, p)) for p in points]]], [[[1] * len(points)]])
-        return m[0, int(np.argmax(sc.ravel()))]
-
-    def segment_box(self, bgr, box):
-        """SAM 2 candidates for a box prompt (x0, y0, x1, y1): [(mask bool, predicted IoU)], 3 of them. A detector's box round the whole person gives the
-        whole body (a point prompt on the head gives the head alone)."""
         t = self.torch
-        emb, sizes = self._embed(bgr)
-        inp = self.sp(original_sizes=sizes, input_boxes=[[[float(v) for v in box]]], return_tensors="pt").to(self.dev)
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        inp = self.sp(images=rgb, input_points=[[[list(map(float, p)) for p in points]]], input_labels=[[[1] * len(points)]], return_tensors="pt").to(self.dev)
         with t.no_grad():
-            o = self.sm(image_embeddings=emb, input_boxes=inp["input_boxes"], multimask_output=True)
-            m = t.nn.functional.interpolate(o.pred_masks[0], tuple(int(v) for v in sizes[0].tolist()), mode="bilinear", align_corners=False) > 0
-        m = m[0].cpu().numpy(); sc = o.iou_scores[0][0].cpu().numpy()
-        return [(m[j], float(sc[j])) for j in range(m.shape[0])]
+            o = self.sm(**inp, multimask_output=True)
+        m = self.sp.post_process_masks(o.pred_masks.cpu(), inp["original_sizes"].cpu())[0][0].numpy() > 0
+        return m[int(np.argmax(o.iou_scores.cpu().numpy().ravel()))]
+
 
     def segment_many(self, bgr, points, chunk=8):
         """SAM 2 candidates for single-point prompts: the picture is encoded once. Returns [(point index, mask bool, predicted IoU)], 3 per point."""
+        t = self.torch
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         out = []
         for c0 in range(0, len(points), chunk):
             pts = points[c0:c0 + chunk]
-            m, sc = self._decode(bgr, [[[[float(x), float(y)]] for x, y in pts]], [[[1]] * len(pts)])
+            inp = self.sp(images=rgb, input_points=[[[[float(x), float(y)]] for x, y in pts]], input_labels=[[[1]] * len(pts)], return_tensors="pt").to(self.dev)
+            with t.no_grad():
+                o = self.sm(**inp, multimask_output=True)
+            m = self.sp.post_process_masks(o.pred_masks.cpu(), inp["original_sizes"].cpu())[0].numpy() > 0       # (objects, 3, H, W)
+            sc = o.iou_scores.cpu().numpy()[0]
             for k in range(len(pts)):
                 for j in range(3):
                     out.append((c0 + k, m[k, j], float(sc[k, j])))
         return out
-
-
-def _gpu_morph_wanted():
-    import os
-    return os.environ.get("SHOP_TOUR_GPU_MORPH", os.environ.get("SHOP_TOUR_GPU_ERODE", "")).strip().lower() not in ("0", "false", "no", "off") and _gpu_maps_wanted()
-
-
-@functools.lru_cache(maxsize=32)
-def _ellipse_runs(r):
-    """The kernel cv2.getStructuringElement(MORPH_ELLIPSE, (2r+1, 2r+1)) as one run of columns (first column, length) per row, or None when a row is not one run."""
-    ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))
-    runs = []
-    for row in ker:
-        nz = np.nonzero(row)[0]
-        if len(nz) == 0 or nz[-1] - nz[0] + 1 != len(nz):
-            return None
-        runs.append((int(nz[0]), int(len(nz))))
-    return tuple(runs)
-
-
-GPU_MORPH_MIN_R = 12             # a smaller kernel is quicker on the CPU than the trip to the card
-REMOTE_MORPH = [None]            # in a process with no card of its own (the fill workers): a function (img, r, dilate) -> picture, or None, that has the main process do the big ones
-
-
-def morph_ellipse(img, r, dilate):
-    """cv2.dilate / cv2.erode(img, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2r+1, 2r+1))) for a uint8 or float32 picture, the same numbers (a maximum or a minimum is
-    exact; the outside of the picture is ignored, as cv2 ignores it). On the video card it is 0.02 s where cv2 needs 1.3 s (r = 72) and 5.4 s (r = 143) of CPU: the kernel
-    has ~65,000 points. Each row of the kernel is a run of columns; the extreme along a run comes from a table of extremes of 1, 2, 4, 8 ... columns (two lookups), and the
-    rows are combined on top of each other. Without a card in use by this process (or SHOP_TOUR_GPU_MORPH=0) it is cv2's own."""
-    r = int(r)
-    if REMOTE_MORPH[0] is not None and r >= GPU_MORPH_MIN_R and img.ndim == 2 and img.dtype in (np.uint8, np.float32):
-        try:
-            return REMOTE_MORPH[0](img, r, dilate)
-        except Exception as e:
-            REMOTE_MORPH[0] = None
-            _gpu_failed("a dilation (asked of the main process)", e)
-    runs = _ellipse_runs(r) if (r >= GPU_MORPH_MIN_R and img.ndim == 2 and img.dtype in (np.uint8, np.float32) and _gpu_morph_wanted()) else None
-    if runs is not None:
-        try:
-            return _morph_on_card(img, r, dilate, runs)
-        except Exception as e:
-            _gpu_failed("a dilation", e)
-    k = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))
-    return cv2.dilate(img, k) if dilate else cv2.erode(img, k)
-
-
-def _morph_on_card(img, r, dilate, runs):
-    import torch
-    h, w = img.shape
-    if img.dtype == np.uint8:
-        dt, neutral = torch.uint8, (0 if dilate else 255)
-    else:
-        dt, neutral = torch.float32, (float("-inf") if dilate else float("inf"))
-    op = torch.maximum if dilate else torch.minimum
-    P = torch.full((h + 2 * r, w + 2 * r), neutral, dtype=dt, device="cuda")
-    P[r:r + h, r:r + w] = torch.from_numpy(np.ascontiguousarray(img)).cuda()
-    tabs = [P]
-    while 2 * (1 << (len(tabs) - 1)) <= 2 * r + 1:
-        k = len(tabs) - 1; prev = tabs[k]; s = 1 << k
-        tabs.append(op(prev[:, :prev.shape[1] - s], prev[:, s:]))
-    acc = torch.full((h, w), neutral, dtype=dt, device="cuda"); tmp = torch.empty_like(acc)
-    for i, (c1, L) in enumerate(runs):
-        k = L.bit_length() - 1; T = tabs[k]; c2 = c1 + L - (1 << k)
-        op(T[i:i + h, c1:c1 + w], T[i:i + h, c2:c2 + w], out=tmp)
-        op(acc, tmp, out=acc)
-    return acc.cpu().numpy()
-
-
-def erode_ellipse(img, r):
-    return morph_ellipse(img, r, False)
-
-
-def dilate_ellipse(img, r):
-    return morph_ellipse(img, r, True)
-
-
-def close_ellipse(img, r):
-    """cv2.morphologyEx(img, cv2.MORPH_CLOSE, ellipse(2r+1)): a dilation, then an erosion."""
-    return morph_ellipse(morph_ellipse(img, r, True), r, False)
 
 
 def depth_flags(disp, cam_h, reach_m=0.9, n=VIEW_N, fov=VIEW_FOV):
@@ -279,7 +123,7 @@ def depth_flags(disp, cam_h, reach_m=0.9, n=VIEW_N, fov=VIEW_FOV):
     d, f = view_dirs(n, fov)
     ang = np.degrees(np.arccos(np.clip(-d[..., 1], -1, 1)))
     r = int(reach_m / (cam_h / f))
-    base = erode_ellipse(disp, r)
+    base = cv2.erode(disp, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1)))
     base = cv2.GaussianBlur(base, (0, 0), r / 3)
     base = np.minimum(base, disp)                                       # the floor is never nearer than the pixel itself
     q = 1 - np.clip(base, 1e-3, None) / np.clip(disp, 1e-3, None)       # fraction of the way from the floor up to the camera
@@ -303,39 +147,24 @@ def score_candidates(cands, disp, cam_h, mpp, n=VIEW_N):
     """Pick the mask that looks like a standing person seen from above: person sized, solid, and standing well above a ring of floor all round it
     (by depth, not by looking for a person). Returns (best mask or None, its score, the number of candidates that passed)."""
     best, bs, passed, found = None, 0.0, 0, []
-    kr = int(0.3 / mpp)
-    ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * kr + 1,) * 2)
+    ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * int(0.3 / mpp) + 1,) * 2)
     seen = []
     for k, m, iou in cands:
-        am = int(np.count_nonzero(m)); area = am * mpp * mpp                      # (count_nonzero: the same number as m.sum(), thirty times quicker on a boolean picture)
+        area = m.sum() * mpp * mpp
         if not 0.12 <= area <= 1.8 or iou < 0.5:
             continue
-        ys0, xs0 = np.nonzero(m.any(1))[0], np.nonzero(m.any(0))[0]
-        box = (int(ys0[0]), int(ys0[-1]) + 1, int(xs0[0]), int(xs0[-1]) + 1)
-        dup = False
-        for o, ao, bo in seen:                         # (the same test as (m & o).sum() > 0.9 * (m | o).sum(), counted inside the two shapes' common box only)
-            y0, y1, x0, x1 = max(box[0], bo[0]), min(box[1], bo[1]), max(box[2], bo[2]), min(box[3], bo[3])
-            if y0 < y1 and x0 < x1:
-                inter = int(np.count_nonzero(m[y0:y1, x0:x1] & o[y0:y1, x0:x1]))
-                if inter > 0.9 * (am + ao - inter):
-                    dup = True; break
-        if dup:
+        if any((m & o).sum() > 0.9 * (m | o).sum() for o in seen):
             continue
-        seen.append((m, am, box))
-        # (the dilations below are made on the shape's own box and the ring round it - the same pixels as over the whole picture, a fraction of the work)
-        r0, r1 = max(0, int(ys0[0]) - kr - 6), min(m.shape[0], int(ys0[-1]) + kr + 7)
-        c0, c1 = max(0, int(xs0[0]) - kr - 6), min(m.shape[1], int(xs0[-1]) + kr + 7)
-        mc = m[r0:r1, c0:c1]
-        mu = mc.astype(np.uint8)
+        seen.append(m)
+        mu = m.astype(np.uint8)
         cnts, _ = cv2.findContours(mu, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         hull = cv2.contourArea(cv2.convexHull(max(cnts, key=cv2.contourArea))) if cnts else 0
-        if hull == 0 or am / hull < 0.55:
+        if hull == 0 or m.sum() / hull < 0.55:
             continue
         ring = (cv2.dilate(mu, ker) > 0) & ~(cv2.dilate(mu, np.ones((9, 9), np.uint8)) > 0)
-        if np.count_nonzero(ring) < 200:
+        if ring.sum() < 200:
             continue
-        dc = disp[r0:r1, c0:c1]
-        inside = np.median(disp[m]); out = dc[ring]
+        inside = np.median(disp[m]); out = disp[ring]
         h = cam_h * (1 - np.median(out) / inside); share = (out < inside * 0.93).mean()
         if h < 0.35 or share < 0.7:
             continue
@@ -354,7 +183,7 @@ def score_candidates(cands, disp, cam_h, mpp, n=VIEW_N):
     return best, bs, passed
 
 
-def find_mask(models, pano, up, cam_h, log=None, hint_fn=None, boxes_fn=None):
+def find_mask(models, pano, up, cam_h, log=None, hint_fn=None):
     """The capturer's mask in the straight-down view (bool, VIEW_N square) plus debug pieces. mask is None when no person-like blob was found (the
     stop has to be held back for review)."""
     n = VIEW_N
@@ -377,8 +206,6 @@ def find_mask(models, pano, up, cam_h, log=None, hint_fn=None, boxes_fn=None):
             cand = models.segment(v, [hint])
             if 0.04 <= cand.sum() * mpp * mpp <= 1.8:
                 sam = cand; dbg["fallback"] = "person detector point prompt"
-    if boxes_fn is not None:
-        sam = add_person_boxes(models, v, sam, boxes_fn(v, pano, up), mpp, dbg, getattr(boxes_fn, 'verify', None))
     if sam is None:
         return None, dbg
     ellipse = lambda rr: cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * rr + 1, 2 * rr + 1))
@@ -392,7 +219,7 @@ def find_mask(models, pano, up, cam_h, log=None, hint_fn=None, boxes_fn=None):
         dbg["body_rejected"] = float(body.sum() * mpp * mpp)
     used = list(line)
     for _ in range(2):                                                      # (b) SAM again with extra points on the depth pixels it left out
-        near = dilate_ellipse(sam.astype(np.uint8), int(NEAR_M / mpp)) > 0
+        near = cv2.dilate(sam.astype(np.uint8), ellipse(int(NEAR_M / mpp))) > 0
         a = cv2.morphologyEx((flag_s & near).astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8)) > 0
         left = cv2.morphologyEx((a & ~(cv2.dilate(sam.astype(np.uint8), np.ones((7, 7), np.uint8)) > 0)).astype(np.uint8), cv2.MORPH_OPEN, ellipse(5))
         cnt, lab, st, cen = cv2.connectedComponentsWithStats(left)
@@ -404,7 +231,7 @@ def find_mask(models, pano, up, cam_h, log=None, hint_fn=None, boxes_fn=None):
             used.pop(); break
         sam = sam | more
     dbg["prompts"] = used
-    near = dilate_ellipse(sam.astype(np.uint8), int(NEAR_M / mpp)) > 0
+    near = cv2.dilate(sam.astype(np.uint8), ellipse(int(NEAR_M / mpp))) > 0
     a = cv2.morphologyEx((flag_s & near).astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8)) > 0
     mask = cv2.morphologyEx((a | sam).astype(np.uint8), cv2.MORPH_CLOSE, ellipse(8)) > 0
     # the stick: from the camera (the nadir) to the hand
@@ -416,96 +243,17 @@ def find_mask(models, pano, up, cam_h, log=None, hint_fn=None, boxes_fn=None):
     ok = np.isin(lab, keep)
     cnt2, lab2, st2, _ = cv2.connectedComponentsWithStats(ok.astype(np.uint8))
     mask = lab2 == (1 + int(np.argmax(st2[1:, cv2.CC_STAT_AREA]))) if cnt2 > 1 else ok
-    if dbg.get("box_active") and cnt2 > 1:                                    # (the person detector's boxes vetted every piece of `sam`: his helmet above a torso is not a stray, whatever its size)
-        mask = np.isin(lab2, [c for c in range(1, cnt2) if (sam & (lab2 == c)).any()] or [1 + int(np.argmax(st2[1:, cv2.CC_STAT_AREA]))])
-    for m in dbg.get("box_extras", ()):                                       # (the boxes' other people: painted out beside him, never joined to him)
-        mask = mask | m
     dbg.update(sam=sam, a=a)
     return mask, dbg
-
-
-BOX_MAX_M2 = 2.6          # a person's box mask is believed up to this size (his own mask is about 1-2.2 m2 seen from above)
-BOX_NEAR_M = 0.9          # boxes join the first one's mask when their masks come this close to it (his head, torso and hands may be several boxes)
-
-
-def _box_mask(models, view, box, mpp):
-    """SAM 2's mask for the person in `box`, or None. Of its three candidates (a part, a bigger part, the whole) the biggest believable one whose IoU estimate is within
-    0.12 of the best: a person's box wants the whole person (the best-scoring candidate of a box round a man was often just his hands or his legs). Believable: a person's
-    size (0.1 m2 to BOX_MAX_M2) and not spilling far outside the box."""
-    x0, y0, x1, y1 = box
-    ok = []
-    for m, iou in models.segment_box(view, box):
-        if iou < 0.25 or not 0.1 <= np.count_nonzero(m) * mpp * mpp <= BOX_MAX_M2:
-            continue
-        ys, xs = np.nonzero(m)
-        if xs.min() >= x0 - 0.6 * (x1 - x0) and xs.max() <= x1 + 0.6 * (x1 - x0) and ys.min() >= y0 - 0.6 * (y1 - y0) and ys.max() <= y1 + 0.6 * (y1 - y0):
-            ok.append((iou, np.count_nonzero(m), m))
-    if not ok:
-        return None
-    best = max(o[0] for o in ok)
-    return max((o for o in ok if o[0] >= best - 0.12), key=lambda o: o[1])[2]
-
-
-def add_person_boxes(models, view, sam, boxes, mpp, dbg, verify=None):
-    """The detector's person boxes near the nadir (view pixels, [(score, box)]) drawn into the capturer's mask. The depth contrast and the point prompts of find_mask
-    often find only his head (a dark head on a dark floor), head and hands but not the torso between (walk 1: 002/015/019, 0.6 m2 -> 1.5-2.2 m2), or a shelf or a crate
-    instead of him (walk 2: 024/027/028); SAM 2 given the whole BOX round the person outlines him. The person is the box with the best score, the one nearer
-    straight down winning a near tie; its mask, and the masks of the boxes that touch it, become the mask - and what the point prompts found stays only where it overlaps
-    them (a head they found rightly is inside the box; a crate they found wrongly is not him). Nothing believable in any box: sam is returned as it was.
-    The new mask is also set in dbg (box_added_m2, or fallback when sam was None); the masks of other boxes that stand apart from him go to dbg['box_extras']."""
-    d, _ = view_dirs()
-    found = []
-    for sc, box in boxes:
-        m = _box_mask(models, view, box, mpp)
-        if m is None:
-            continue
-        ys, xs = np.nonzero(m)
-        deg = float(np.degrees(np.arccos(np.clip(-d[int(ys.mean()), int(xs.mean()), 1], -1, 1))))
-        found.append((sc - 0.2 * deg / 55.0, sc, m))
-    if not found:
-        return sam
-    found.sort(key=lambda t: -t[0])
-    dbg["box_active"] = True
-    prime = found[0][2]
-    kr = int(BOX_NEAR_M / mpp)
-    near = dilate_ellipse(prime.astype(np.uint8), kr) > 0
-    new = prime.copy(); extras = []
-    for _, _, m in found[1:]:
-        if (m & near).any() and np.count_nonzero(new | m) * mpp * mpp <= BOX_MAX_M2:
-            new |= m
-        elif not (m & new).any() and len(extras) < 2:
-            extras.append(m)                                   # another person-shaped thing the detector boxed (a stranger, or a second look at him): painted out too, kept apart
-    dbg["box_extras"] = extras
-    if sam is not None:
-        # what the point prompts found counts only where it is part of the boxed person: a piece that mostly lies inside it joins (a hand outside a thin box), a blob that
-        # does not is an object (a crate, a shelf) and is dropped
-        cnt, lab = cv2.connectedComponents(sam.astype(np.uint8))
-        inbox = np.zeros(sam.shape, bool)
-        for sc, (bx0, by0, bx1, by1) in boxes:
-            pw, ph = 0.1 * (bx1 - bx0), 0.1 * (by1 - by0)
-            inbox[max(0, int(by0 - ph)):int(by1 + ph) + 1, max(0, int(bx0 - pw)):int(bx1 + pw) + 1] = True
-        newd = dilate_ellipse(new.astype(np.uint8), int(0.15 / mpp)) > 0
-        for c in range(1, cnt):
-            piece = lab == c
-            if (piece & newd).any() or np.count_nonzero(piece & inbox) >= 0.3 * np.count_nonzero(piece):       # (touching the box's mask, or lying inside a person box: a head found alone, a hand outside a thin box)
-                new |= piece
-            elif verify is not None and np.count_nonzero(piece) * mpp * mpp >= 0.04 and verify(view, piece):    # (a piece away from the boxes stays when the detector, shown just that piece, calls it a person: a helmet and face above a torso's box)
-                new |= piece; dbg["box_kept_piece"] = dbg.get("box_kept_piece", 0) + 1
-        dbg["box_added_m2"] = round(float(np.count_nonzero(new & ~sam)) * mpp * mpp, 2)
-        if not (sam & new).any():
-            dbg["box_replaced"] = round(float(np.count_nonzero(sam)) * mpp * mpp, 2)           # what the point prompts found was not him
-    else:
-        dbg["fallback"] = "person detector box"
-    return new
 
 
 def add_shadow(view, mask, height, cam_h, mpp, reach_m=0.7):
     """His shadow: floor pixels touching the mask that are clearly darker than the floor around."""
     g = cv2.GaussianBlur(cv2.cvtColor(view, cv2.COLOR_BGR2GRAY).astype(np.float32), (0, 0), 3)
     n = mask.shape[0]; r = int(reach_m / mpp)
-    m8 = mask.astype(np.uint8)
-    near = dilate_ellipse(m8, r) > 0                                 # (the same numbers as cv2.dilate with the ellipse, made on the video card where there is one)
-    ring_far = dilate_ellipse(m8, 2 * r) > 0                         # (a ring round `near` was worked out here and never used: gone)
+    near = cv2.dilate(mask.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))) > 0
+    ring = near & ~cv2.dilate(mask.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1)), iterations=2).astype(bool)
+    ring_far = cv2.dilate(mask.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (4 * r + 1, 4 * r + 1))) > 0
     ref = ring_far & ~near & (height < HEIGHT_M)
     if ref.sum() < 500:
         return mask
@@ -526,7 +274,6 @@ MAX_VIEWS = 5                     # neighbours compared for the floor
 MIN_SPREAD_DEG = 35               # two neighbours only vouch for the floor together if they look at it from directions at least this far apart
 DIFF_TOL = 30                     # this stop's floor differs from the neighbours' agreed floor by more than this (0-255, blurred): something lies on it
 AGREE_BLUR, AGREE_TOL = 6, 18     # two views agree on a pixel when their blurred colours differ by less than this (0-255)
-SINGLE_NCC = 0.3                  # where no two neighbours agree, ONE neighbour that lines up this well (its correlation with this stop's floor ring) may still supply the floor
 HALO_M = 0.45                     # width of the floor ring around the hole that the neighbours are lined up and colour-matched against
 
 
@@ -584,92 +331,8 @@ def _gray(img, s=2.0):
     return cv2.GaussianBlur(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).astype(np.float32), (0, 0), s)
 
 
-GRID = [(dyaw, dd, dl) for dyaw in (-5, -2.5, 0, 2.5, 5) for dd in (-0.4, -0.2, 0, 0.2, 0.4) for dl in (-0.2, 0, 0.2)]      # the search over heading, distance and sideways offset
-SEARCH_S = 4                                                                                                                  # the search runs on every 4th pixel of the crop
-RING_MAX_POINTS = 30000                                                                                                                       # the ring the alignment search looks at: at most this many points
-SMALL_W = 1920                                                                                                                # ... against a neighbour that is 1920 wide, grey
-
-
-class RingSearch:
-    """The part of the alignment search that belongs to ONE stop and is the same for every neighbour and every distance tried: the floor ring (every 4th pixel
-    of it, as a list of points), this stop's own grey floor there, and the floor point each of them sees."""
-    def __init__(self, fill, view_crop, ring):
-        s = SEARCH_S
-        A = _gray(view_crop)[::s, ::s]
-        ys, xs = np.nonzero(ring[::s, ::s])
-        self.P = np.ascontiguousarray(fill.P[::s, ::s][ys, xs], dtype=np.float32)
-        self.A = A[ys, xs].astype(np.float32)
-        if len(self.A) > RING_MAX_POINTS:                      # (cv2.remap takes at most 32,767 columns: a hole of 5 m2 and more has a ring of more points than that. An even sample of it.)
-            keep = np.linspace(0, len(self.A) - 1, RING_MAX_POINTS).astype(np.int64)
-            self.P, self.A = np.ascontiguousarray(self.P[keep]), np.ascontiguousarray(self.A[keep])
-        self.h = fill.h
-
-
-def small_gray(pano_j, w=SMALL_W):
-    """The neighbour's picture as the search sees it: grey, w wide, a little smoothed (what the old search got by sampling the full picture and blurring)."""
-    g = cv2.cvtColor(pano_j, cv2.COLOR_BGR2GRAY)
-    if g.shape[1] > w:
-        g = cv2.resize(g, (w, int(round(g.shape[0] * w / g.shape[1]))), interpolation=cv2.INTER_AREA)
-    return cv2.GaussianBlur(g, (0, 0), 0.7)
-
-
-def align_search(rs, gsmall, up_j, h_j, az, d, turn, mask_j1024):
-    """Line stop j up with this stop on the floor ring (a small search over its heading and distance), looking only at the ring's points: returns
-    (parameters, correlation). The same search as `align` always made - 75 combinations, the one whose floor correlates best with this stop's own - but each
-    combination is worked out on the ring's points alone, against the neighbour's small grey picture."""
-    a = np.radians(az)
-    Ru = rot_to_y(up_j).astype(np.float32)
-    H2, W2 = gsmall.shape[:2]
-    f1 = VIEW_N / 2 / np.tan(np.radians(VIEW_FOV) / 2)
-    cos72 = np.cos(np.radians(72))
-    mk_src = None if mask_j1024 is None else mask_j1024.astype(np.uint8)
-    best = (-2.0, 0, 0, 0)
-    A = rs.A
-    N = len(A)
-    last_dyaw, PR, PM = None, None, None
-    for dyaw, dd, dl in GRID:
-        if dyaw != last_dyaw:
-            Rt = roty(np.radians(turn + dyaw)).T.astype(np.float32)
-            PR = rs.P @ Rt; PM = PR @ Ru; last_dyaw = dyaw
-        Cv = np.array([np.sin(a) * (d + dd) - np.cos(a) * dl, h_j - rs.h, np.cos(a) * (d + dd) + np.sin(a) * dl], np.float32)
-        Ct = Cv @ Rt
-        D = PR - Ct
-        nrm = np.sqrt((D * D).sum(-1))
-        down = -D[:, 1] / nrm
-        ok = (down > cos72) & (down < 0.999)
-        if mk_src is not None:
-            dn = np.maximum(down, 1e-3)
-            col = f1 * (D[:, 0] / nrm) / dn + VIEW_N / 2 - 0.5; row = VIEW_N / 2 - 0.5 - f1 * (D[:, 2] / nrm) / dn
-            inside = (col > 0) & (col < VIEW_N - 1) & (row > 0) & (row < VIEW_N - 1)
-            mk = cv2.remap(mk_src, col.astype(np.float32).reshape(1, -1), row.astype(np.float32).reshape(1, -1), cv2.INTER_NEAREST, borderValue=0).ravel() > 0
-            ok &= ~(inside & mk)
-        if ok.sum() < 300:
-            if -1.0 > best[0]:
-                best = (-1.0, dyaw, dd, dl)
-            continue
-        rj = PM - Ct @ Ru
-        u = ((np.arctan2(rj[:, 0], rj[:, 2]) + np.pi) / (2 * np.pi) * W2 - 0.5).astype(np.float32)
-        v = ((np.pi / 2 - np.arcsin(np.clip(rj[:, 1] / nrm, -1, 1))) / np.pi * H2 - 0.5).astype(np.float32)
-        g = cv2.remap(gsmall, u.reshape(1, -1), v.reshape(1, -1), cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP).ravel()
-        x, y = A[ok], g[ok].astype(np.float32)
-        x = x - x.mean(); y = y - y.mean()
-        den = float(np.sqrt((x * x).sum() * (y * y).sum()))
-        sc = float((x * y).sum() / den) if den > 0 else 0.0
-        if sc > best[0]:
-            best = (sc, dyaw, dd, dl)
-    sc, dyaw, dd, dl = best
-    return dict(dyaw=dyaw, dd=dd, dl=dl, ncc=sc)
-
-
 def align(fill, view_crop, ring, pano_j, up_j, h_j, az, d, turn, mask_j1024, nf_j=None):
-    """Line stop j up with this stop on the floor ring (small search over its heading and distance); returns (parameters, image, valid)."""
-    par = align_search(RingSearch(fill, view_crop, ring), small_gray(pano_j), up_j, h_j, az, d, turn, mask_j1024)
-    img, ok = sample_from(fill, pano_j, up_j, h_j, az, d, turn, mask_j1024, par["dyaw"], par["dd"], par["dl"], nf_j)
-    return par, img, ok
-
-
-def align_old(fill, view_crop, ring, pano_j, up_j, h_j, az, d, turn, mask_j1024, nf_j=None):
-    """The search as it was made before the ring search (kept for comparing the two)."""
+    """Line stop j up with this stop on the floor ring (small search over its heading and distance); returns (parameters, correlation, image, valid)."""
     A = _gray(view_crop)
     # coarse-to-fine on a quarter size crop: much cheaper than the full one
     s = 4
@@ -712,42 +375,6 @@ def dominant_smooth(img, band, grad_max=12.0):
     grad = np.hypot(cv2.Sobel(g, cv2.CV_32F, 1, 0), cv2.Sobel(g, cv2.CV_32F, 0, 1))
     sm = band & (grad < grad_max)
     return sm if sm.sum() > 800 else band
-
-
-DETAIL_SIGMA = 6          # floor detail is what is left of a picture when its blur (this wide, in crop pixels) is taken away
-DETAIL_MIN_PX = 2000      # a soft patch smaller than this is left as the blur it is
-
-
-def add_floor_detail(filled, vc, soft, floor, max_amp=28.0):
-    """A soft fill is a flat smudge of the colour round the hole - the part of him a person still sees. The floor has grain: take the grain (the picture minus its own
-    blur) of a place that is floor - `floor`, the floor the neighbours vouch for round and in the hole - displaced so that it covers the soft patch, and lay it over the blur.
-    The displacement is the one (a few hole-sizes in each of eight directions) whose source is floor under the most of the patch. Returns the new picture and the share of
-    the patch that got detail (0 when nothing fitted: the picture is returned as it was)."""
-    ys, xs = np.nonzero(soft)
-    if len(ys) < DETAIL_MIN_PX:
-        return filled, 0.0
-    H, W = soft.shape
-    bh, bw = int(ys.max() - ys.min()) + 1, int(xs.max() - xs.min()) + 1
-    fl = (floor & ~soft).astype(np.uint8)
-    best, best_s = None, 0.0
-    for r in (1.0, 1.5, 2.2):
-        for a in range(0, 360, 45):
-            dx, dy = int(round(np.cos(np.radians(a)) * r * bw)), int(round(np.sin(np.radians(a)) * r * bh))
-            sy, sx = ys + dy, xs + dx
-            ok = (sy >= 0) & (sy < H) & (sx >= 0) & (sx < W)
-            sc = float(fl[sy[ok], sx[ok]].sum()) / len(ys)
-            if sc > best_s:
-                best, best_s = (dx, dy), sc
-    if best is None or best_s < 0.15:
-        return filled, 0.0
-    g = vc.astype(np.float32)
-    detail = np.clip(g - cv2.GaussianBlur(g, (0, 0), DETAIL_SIGMA), -max_amp, max_amp) * fl[..., None]
-    dx, dy = best
-    M = np.float32([[1, 0, -dx], [0, 1, -dy]])
-    shifted = cv2.warpAffine(detail, M, (W, H), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT, borderValue=0)
-    out = filled.astype(np.float32)
-    out[soft] += shifted[soft]
-    return np.clip(out, 0, 255).astype(np.uint8), best_s
 
 
 def clean_regions(m, close_px=31, open_px=15, min_px=12000):
@@ -794,10 +421,8 @@ def fill_stop(i, pano_i, up_i, h_i, mask1024, nbrs, load, log=None, ncc_min=0.12
     hole = fill.hole
     ker = lambda r: cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1))
     rpx = lambda m: max(1, int(m * fill.f / fill.h))
-    dil = lambda m, r: dilate_ellipse(m.astype(np.uint8), r)             # (cv2.dilate with the ellipse ker(r): the same numbers, made on the video card where there is one)
-    ring = (dil(hole, rpx(HALO_M)) > 0) & ~(dil(hole, rpx(0.05)) > 0)
+    ring = (cv2.dilate(hole.astype(np.uint8), ker(rpx(HALO_M))) > 0) & ~(cv2.dilate(hole.astype(np.uint8), ker(rpx(0.05))) > 0)
     patch = np.zeros_like(vc); got = np.zeros(hole.shape, bool); used = []
-    rs = RingSearch(fill, vc, ring)
     # up to MAX_VIEWS neighbours that line up with this stop's floor; a floor pixel is trusted only where two of them agree (anything above the floor
     # lands in different places from different stops, so it does not agree and is not copied)
     good = []
@@ -805,14 +430,10 @@ def fill_stop(i, pano_i, up_i, h_i, mask1024, nbrs, load, log=None, ncc_min=0.12
         if len(good) >= MAX_VIEWS:
             break
         pj, uj, hj, mj, nfj = load(nb["j"])
-        # (the segmentation's floor mask is not used: it calls white walls floor and concrete not.) A neighbour whose distance is only roughly known (nb["ds"]: privacy_inputs.py,
-        # from two photographs instead of the map) is tried at each distance and kept at the one whose floor lines up best with this stop's own.
-        gs = small_gray(pj)
-        par, d = max(((align_search(rs, gs, uj, hj, nb["az"], d, nb["turn"], mj), d) for d in (nb.get("ds") or [nb["d"]])), key=lambda r: r[0]["ncc"])
+        par, img, ok = align(fill, vc, ring, pj, uj, hj, nb["az"], nb["d"], nb["turn"], mj)        # (the segmentation's floor mask is not used: it calls white walls floor and concrete not)
         if par["ncc"] < ncc_min:
             used.append(dict(j=nb["j"], ncc=round(par["ncc"], 2), used=0, why="does not line up with this stop's floor"))
             continue
-        img, ok = sample_from(fill, pj, uj, hj, nb["az"], d, nb["turn"], mj, par["dyaw"], par["dd"], par["dl"], None)
         g = fill_gain(vc, img, ring & ok)
         img = np.clip(img.astype(np.float32) * g, 0, 255).astype(np.uint8)
         good.append((nb["j"], par, img, ok, cv2.GaussianBlur(img, (0, 0), AGREE_BLUR).astype(np.float32), nb["az"]))
@@ -833,40 +454,25 @@ def fill_stop(i, pano_i, up_i, h_i, mask1024, nbrs, load, log=None, ncc_min=0.12
     own_b = cv2.GaussianBlur(vc, (0, 0), 3).astype(np.float32); cons_b = cv2.GaussianBlur(cons, (0, 0), 3).astype(np.float32)
     differs = cv2.morphologyEx(((np.abs(own_b - cons_b).mean(-1) > DIFF_TOL) & cons_ok).astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
     cntc, labc = cv2.connectedComponents(differs)
-    near = dil(hole, rpx(0.15)) > 0
+    near = cv2.dilate(hole.astype(np.uint8), ker(rpx(0.15))) > 0
     keep = np.unique(labc[near & (differs > 0)]); keep = keep[keep > 0]
     if len(keep):
         extra = np.isin(labc, keep)
-        hole2 = dil(close_ellipse((hole | extra).astype(np.uint8), rpx(0.1)), rpx(0.02)) > 0
+        hole2 = cv2.dilate(cv2.morphologyEx((hole | extra).astype(np.uint8), cv2.MORPH_CLOSE, ker(rpx(0.1))), ker(rpx(0.02))) > 0
         if hole2.sum() * (fill.h / fill.f) ** 2 <= 4.5:                              # never let it run away
             grown = float((hole2.sum() - hole.sum()) * (fill.h / fill.f) ** 2)
             hole = hole2; fill.hole = hole
-    ring = (dil(hole, rpx(HALO_M)) > 0) & ~(dil(hole, rpx(0.05)) > 0)
-    band = (dil(hole, rpx(0.3)) > 0) & ~(dil(hole, rpx(0.02)) > 0)
+    ring = (cv2.dilate(hole.astype(np.uint8), ker(rpx(HALO_M))) > 0) & ~(cv2.dilate(hole.astype(np.uint8), ker(rpx(0.05))) > 0)
+    band = (cv2.dilate(hole.astype(np.uint8), ker(rpx(0.3))) > 0) & ~(cv2.dilate(hole.astype(np.uint8), ker(rpx(0.02))) > 0)
     resid = cv2.morphologyEx(((np.abs(own_b - cons_b).mean(-1) > DIFF_TOL) & cons_ok & band).astype(np.uint8), cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
     leftover = float(resid.sum()) * (fill.h / fill.f) ** 2           # floor the other stops agree on that this stop still sees differently, right next to the hole
     got = cons_ok & hole; patch = cons
-    # Where two neighbours could not agree (a cluttered floor, or neighbours on the same side of him, or one neighbour whose view of the spot is hidden by its own
-    # capturer) the soft fill is a dark smudge where he stood. One neighbour that lines up with this stop's floor ring, taken as whole patches, is far closer to the real
-    # floor than a blur is: the best-aligned first, only where it sees the floor (its own capturer's mask excluded in `ok`). `agreed` is what two neighbours vouch for.
-    agreed = got.copy(); single = np.zeros(hole.shape, bool); single_from = {}
-    for j, par, img, ok, _, _az in sorted(good, key=lambda g: -g[1]["ncc"]):
-        if par["ncc"] < SINGLE_NCC:
-            continue
-        take = clean_regions(ok & hole & ~got & ~single, 15, 7, 3000)
-        if take.any():
-            patch = np.where(take[..., None], img, patch); single |= take; single_from[j] = int(take.sum())
-    got = got | single
-    for u in used:
-        if u.get("j") in single_from:
-            u["single"] = single_from[u["j"]]
     ring_floor = cons_ok & ring                                                      # floor round the hole that two stops agree on
     known = (~hole) | got
     base = np.where(got[..., None], patch, vc)
     src = clean_regions(ring_floor, 15, 7, 3000)                                    # what no neighbour saw: a soft fill from the FLOOR round it (not the shelves)
-    src = src if src.sum() > 4000 else dominant_smooth(vc, (dil(hole, rpx(0.2)) > 0) & ~hole)             # nobody vouched for any floor: the smooth colours right at the edge of the hole
+    src = src if src.sum() > 4000 else dominant_smooth(vc, (cv2.dilate(hole.astype(np.uint8), ker(rpx(0.2))) > 0) & ~hole)             # nobody vouched for any floor: the smooth colours right at the edge of the hole
     filled = soft_fill(base, src | got)
-    filled, detail_share = add_floor_detail(filled, base, hole & ~got, src | got)
     mix = np.where(got[..., None], patch, filled)
     mix = np.where(hole[..., None], mix, vc)
     # Poisson blend: the patch takes its colour at the edge from the floor around the hole (a seam disappears), its detail stays
@@ -882,8 +488,8 @@ def fill_stop(i, pano_i, up_i, h_i, mask1024, nbrs, load, log=None, ncc_min=0.12
             blended = mix
         mix = np.where(got[..., None], blended, mix)
     new_pano = paste_back(pano_i, mix, hole, fill)
-    stats = dict(hole_px_view=int(hole.sum()), real_pct=round(100.0 * agreed.sum() / max(1, hole.sum()), 1), single_pct=round(100.0 * single.sum() / max(1, hole.sum()), 1), blur_pct=round(100.0 * (hole & ~got).sum() / max(1, hole.sum()), 1),
-                 neighbours=used, hole_m2=round(float(hole.sum()) * (fill.h / fill.f) ** 2, 2), grown_m2=round(grown, 2), leftover_m2=round(leftover, 3), detail=round(float(detail_share), 2))
+    stats = dict(hole_px_view=int(hole.sum()), real_pct=round(100.0 * got.sum() / max(1, hole.sum()), 1), blur_pct=round(100.0 * (hole & ~got).sum() / max(1, hole.sum()), 1),
+                 neighbours=used, hole_m2=round(float(hole.sum()) * (fill.h / fill.f) ** 2, 2), grown_m2=round(grown, 2), leftover_m2=round(leftover, 3))
     return new_pano, stats, dict(before=vc, after=mix, hole=hole, got=got, fill=fill, floor_ref=(src | got))
 
 
@@ -892,9 +498,11 @@ def level_view_crop(pano, fill):
     return cv2.remap(pano, u, v, cv2.INTER_LINEAR, borderMode=cv2.BORDER_WRAP)
 
 
-def _paste_maps(fill, H, W, r0, rows, cols):
-    """For the pano pixels rows x cols (index arrays): where each lands in the crop (col, row) and whether the crop covers it."""
-    az = ((cols + 0.5) / W * 2 * np.pi - np.pi).astype(np.float32); el = (np.pi / 2 - (rows + 0.5) / H * np.pi).astype(np.float32)
+def paste_back(pano, crop_img, hole, fill, feather_px=6):
+    """Write the filled crop into the pano wherever the pano sees the hole. Feathered at the edge so that no line shows."""
+    H, W = pano.shape[:2]
+    r0 = int(H * 0.5)                                                              # nadir cone only: rows below the horizon
+    az = ((np.arange(W) + 0.5) / W * 2 * np.pi - np.pi).astype(np.float32); el = (np.pi / 2 - (np.arange(r0, H) + 0.5) / H * np.pi).astype(np.float32)
     A, E = np.meshgrid(az, el)
     r = np.stack([np.cos(E) * np.sin(A), np.sin(E), np.cos(E) * np.cos(A)], -1)
     L = r @ rot_to_y(fill.up).T.astype(np.float32)
@@ -902,31 +510,11 @@ def _paste_maps(fill, H, W, r0, rows, cols):
     col = (fill.f * L[..., 0] / dy + FILL_N / 2 - fill.x0 - 0.5).astype(np.float32)
     row = (FILL_N / 2 - fill.y0 - 0.5 - fill.f * L[..., 2] / dy).astype(np.float32)
     inside = (L[..., 1] < -0.3) & (col > 1) & (col < fill.shape[1] - 2) & (row > 1) & (row < fill.shape[0] - 2)
-    return col, row, inside
-
-
-def paste_back(pano, crop_img, hole, fill, feather_px=6):
-    """Write the filled crop into the pano wherever the pano sees the hole. Feathered at the edge so that no line shows.
-    Only the part of the pano that the crop can cover is worked out (found on a coarse grid, with room to spare); every pixel there is exactly what the
-    whole-picture version gave, and the rest is untouched."""
-    H, W = pano.shape[:2]
-    r0 = int(H * 0.5)                                                              # nadir cone only: rows below the horizon
-    st = 8
-    _, _, ins = _paste_maps(fill, H, W, r0, np.arange(r0, H, st), np.arange(0, W, st))
-    out = pano.copy()
-    if not ins.any():
-        return out
-    ri, ci = np.nonzero(ins)
-    y0, y1 = r0 + max(0, int(ri.min()) * st - 2 * st), r0 + min(H - r0, (int(ri.max()) + 1) * st + 2 * st)
-    if ci.min() == 0 or ci.max() == ins.shape[1] - 1:                              # across the picture's seam (or all the way round): all the columns
-        x0, x1 = 0, W
-    else:
-        x0, x1 = max(0, int(ci.min()) * st - 2 * st), min(W, (int(ci.max()) + 1) * st + 2 * st)
-    col, row, inside = _paste_maps(fill, H, W, r0, np.arange(y0, y1), np.arange(x0, x1))
     wmask = cv2.GaussianBlur(hole.astype(np.float32), (0, 0), feather_px)
     w = cv2.remap(wmask, col, row, cv2.INTER_LINEAR, borderValue=0) * inside
     w = np.where(cv2.remap(hole.astype(np.float32), col, row, cv2.INTER_LINEAR, borderValue=0) > 0.5, 1.0, w) * inside
     new = cv2.remap(crop_img, col, row, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
-    sub = out[y0:y1, x0:x1]
+    out = pano.copy()
+    sub = out[r0:H]
     sub[:] = (sub.astype(np.float32) * (1 - w[..., None]) + new.astype(np.float32) * w[..., None]).astype(np.uint8)
     return out

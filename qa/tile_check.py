@@ -1,6 +1,6 @@
 """Phone tiles vs the whole 8K picture vs 4K only, on an emulated touch phone: picture memory, bytes downloaded, sharpness.
 
-Usage: python qa/tile_check.py --tour D:/walks/place/2026-01-01/tour [--stops 1,10,20] [--json qa/tile_check.json]
+Usage: python qa/tile_check.py --tour D:/walks/example/walk1/tour [--stops 1,10,20] [--json qa/tile_check.json]
 For every stop and every mode (?notiles = whole 8K like before, ?tiles = new, ?lowres = 4K only) it opens the stop in a 390x844 touch
 viewport (device pixel ratio 3), waits until the picture has settled, and records the viewer's own picture-memory counter, the picture
 bytes the page downloaded, the sharpness (variance of the Laplacian) of the screenshot, and the difference to the whole-8K screenshot.
