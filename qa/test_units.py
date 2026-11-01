@@ -1322,20 +1322,21 @@ class TestEarlyTour(unittest.TestCase):
 class TestRunSteps(unittest.TestCase):
     """tour.run_steps: vio runs beside level/hops/depth/floor (CPU beside GPU) and is joined before map; SHOP_TOUR_SERIAL / serial=True is the old order."""
     def _run(self, d, spec, **kw):
-        """spec: [(name, seconds, exit)]; every step writes frames/<name>.txt and a start/end line to trace.txt. Returns (timings, printed, error)."""
+        """spec: [(name, seconds, exit)]; every step writes frames/<name>.txt and its start and end times each to a file of its own under trace/ (two processes appending to one file interleave on Windows, and a torn line read as a missing step). Returns (timings, printed, error)."""
         import contextlib, io
         os.makedirs(os.path.join(d, "frames"), exist_ok=True)
-        trace = os.path.join(d, "trace.txt")
+        trace = os.path.join(d, "trace")
+        os.makedirs(trace, exist_ok=True)
         S = []
         for name, secs, code in spec:
             out = os.path.join(d, "frames", name + ".txt")
             prog = ("import os,sys,time\n"
-                    f"open({trace!r},'a').write({name!r}+' start %f\\n' % time.time())\n"
+                    f"open(os.path.join({trace!r},{name!r}+'.start'),'w').write('%f' % time.time())\n"
                     f"time.sleep({secs})\n"
                     f"print({name!r}+' said hello')\n"
                     f"if {code}: print('boom from {name}'); sys.exit({code})\n"
                     f"open({out!r},'w').write('x')\n"
-                    f"open({trace!r},'a').write({name!r}+' end %f\\n' % time.time())\n")
+                    f"open(os.path.join({trace!r},{name!r}+'.end'),'w').write('%f' % time.time())\n")
             S.append((name, [], [f"frames/{name}.txt"], (lambda p=prog: [[sys.executable, "-c", p]])))
         old = (tour.WORK, tour.F)
         tour.WORK, tour.F = d, os.path.join(d, "frames")
@@ -1348,14 +1349,10 @@ class TestRunSteps(unittest.TestCase):
         finally:
             tour.WORK, tour.F = old
         ev = {}
-        if os.path.exists(trace):
-            with open(trace) as fh:
-                for line in fh:
-                    parts = line.split()
-                    if len(parts) != 3:
-                        continue
-                    n, what, t = parts
-                    ev[(n, what)] = float(t)
+        for fn in os.listdir(trace):
+            n, what = fn.rsplit('.', 1)
+            with open(os.path.join(trace, fn)) as fh:
+                ev[(n, what)] = float(fh.read())
         return timings, buf.getvalue(), err, ev
 
     ORDER = [("vio", 4.0, 0), ("level", 0.1, 0), ("hops", 0.1, 0), ("map", 0.1, 0), ("depth", 0.4, 0), ("floor", 0.4, 0), ("rings", 0.1, 0)]
