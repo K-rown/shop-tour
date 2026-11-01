@@ -1,6 +1,6 @@
 # shop-tour
 
-Turn one walk with an Insta360 360 camera into a walkable 3D tour you open in any browser: tap the floor to glide there, a dollhouse, a floor plan.
+Turn one walk with an Insta360 360 camera into a walkable 3D tour you open in any browser: tap the floor to glide from spot to spot, with a map of the path you walked.
 Free, open source, and it runs on your own computer — nothing is uploaded anywhere.
 
 <p align="center">

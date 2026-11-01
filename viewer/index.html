@@ -1441,8 +1441,10 @@
     for (const e of edges) e.el.style.display = 'none';
   }
   $('bDoll').onclick = dollOpen;
-  if (tour.dollhouse) $('bDoll').hidden = false;
-  if (tour.plan) $('bPlan').hidden = false;
+  // THE DOLLHOUSE AND THE PLAN ARE NOT READY (2026-10-31): built and kept, shown only with ?lab in the address until they are good enough
+  const LAB = /[?&]lab/.test(location.search);
+  if (LAB && tour.dollhouse) $('bDoll').hidden = false;
+  if (LAB && tour.plan) $('bPlan').hidden = false;
 
 
   // ---------- pinned notes: press and hold (or right-click, or the Note button then tap) a spot; the note is seen from every stop that can see that spot ----------
