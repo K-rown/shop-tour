@@ -3,8 +3,15 @@
 Turn one walk with an Insta360 360 camera into a walkable 3D tour you open in any browser: tap the floor to glide there, a dollhouse, a floor plan.
 Free, open source, and it runs on your own computer — nothing is uploaded anywhere.
 
-<!-- DEMO GIF: NOT YET PUBLISHABLE. docs/demo.gif (git-ignored) is made from a walk of a real workplace and must not be committed until the people
-     who work there have said yes. Replace this comment with ![demo](docs/demo.gif) once a publishable walk exists (python qa/make_demo_gif.py). -->
+<p align="center">
+  <img src="docs/images/tour-desktop.jpg" alt="A built tour in the browser: the 360 photo, a round map of the walked path, the stops as numbered circles and a big walk-forward key" width="100%">
+</p>
+<p align="center">
+  <img src="docs/images/tour-phone.jpg" alt="The same tour on a phone" width="260">
+  &nbsp;&nbsp;
+  <img src="docs/images/setup-page.png" alt="The upload page: name the place, press Choose your 360 video" width="260">
+</p>
+<p align="center"><sub>Demo walk: <a href="https://commons.wikimedia.org/wiki/File:Norah_Head_Insta360_X5_Virtual_Tour_OHNE_TON.webm">Norah Head Insta360 X5 Virtual Tour</a> by GlennsYouTube, CC BY 3.0, built with this engine.</sub></p>
 
 ## Get started
 
